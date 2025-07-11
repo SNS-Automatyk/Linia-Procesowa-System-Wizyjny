@@ -1,5 +1,8 @@
 # This script captures video from a camera, detects both contours and circles in each frame, and classifies detected circles by color using HSV color space. It displays the number of detected objects and circles on the video stream.
 
+import os
+os.environ["LIBCAMERA_LOG_LEVELS"] = "*:2" # Ustawienie poziomu logowania dla libcamera, aby uniknąć nadmiaru informacji w konsoli
+
 import cv2 as cv
 import numpy as np
 from math import floor
@@ -28,7 +31,8 @@ def get_camera():
     if PICAMERA_AVAILABLE:
         picam2 = Picamera2()
         picam2.start()
-        get_frame = lambda: picam2.capture_array()
+        # Zamiana kanałów BGR <-> RGB dla Picamera2
+        get_frame = lambda: cv.cvtColor(picam2.capture_array(), cv.COLOR_RGB2BGR)
         release_camera = lambda: picam2.stop()
     else:
         cam = cv.VideoCapture(0)
@@ -106,7 +110,7 @@ def get_circle_color_info(a, b, r, frame):
     else:
         hue_value = 0
     average[0] = hue_value
-    if average[2] < 160:
+    if average[2] < 80 or (average[2] < 150 and average[1] < 100):
         color = "czarny"
     elif hue_value < 7.5:
         color = "czerwony"
@@ -207,7 +211,7 @@ def detect_circles(frame, FRAME_LEFT_MARGIN, FRAME_TOP_MARGIN, FRAME_WIDTH, FRAM
             color, average = get_circle_color_info(a, b, r, frame)
             cv.circle(frame, (a, b), r, (0, 255, 0), 2)
             cv.circle(frame, (a, b), 1, (0, 0, 255), 3)
-            cv.putText(frame, color, (a,b), 1, 1, (255,255, 255))
+            cv.putText(frame, f"{color} HSV:{[int(round(x)) for x in average]}", (a,b), 1, 1, (255,255, 255))
             color_bgr = cv.cvtColor(np.uint8([[average]]), cv.COLOR_HSV2BGR)[0][0]
             OFFSET_X = 0
             OFFSET_Y = -10
