@@ -19,6 +19,11 @@ Software for a vision system for a process line. The project enables object dete
     sudo apt-get install python3-opencv
     ```
 
+2. Set up pre-commit hooks to ensure code quality:
+    ```
+    pre-commit install
+    ```
+
 3. Run the script:
     ```
     python cli.py --live -c
