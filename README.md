@@ -19,9 +19,9 @@ Software for a vision system for a process line. The project enables object dete
     sudo apt-get install python3-opencv
     ```
 
-3. Run the selected script:
+3. Run the script:
     ```
-    python src/wizja.py
+    python cli.py --live
     ```
 
 ## Authors
