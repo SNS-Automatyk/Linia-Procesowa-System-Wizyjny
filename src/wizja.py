@@ -3,7 +3,6 @@
 import cv2 as cv
 import numpy as np
 from math import floor
-from sys import getsizeof
 
 try:
     from picamera2 import Picamera2, Preview
@@ -12,10 +11,10 @@ except ImportError:
     PICAMERA_AVAILABLE = False
 
 # --- KONFIGURACJA KADROWANIA ---
-FRAME_LEFT_MARGIN = 300   # Lewy margines ramki (x)
-FRAME_TOP_MARGIN = 160     # Górny margines ramki (y)
-FRAME_RIGHT_MARGIN = 300  # Prawy margines ramki
-FRAME_BOTTOM_MARGIN = 60  # Dolny margines ramki
+FRAME_LEFT_MARGIN = 0   # Lewy margines ramki (x)
+FRAME_TOP_MARGIN = 0     # Górny margines ramki (y)
+FRAME_RIGHT_MARGIN = 0  # Prawy margines ramki
+FRAME_BOTTOM_MARGIN = 0  # Dolny margines ramki
 # --- KONIEC KONFIGURACJI ---
 
 # --- KONFIGURACJA WYKRYWANIA KÓŁEK ---
