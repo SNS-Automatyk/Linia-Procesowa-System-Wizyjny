@@ -18,6 +18,11 @@ FRAME_RIGHT_MARGIN = 300  # Prawy margines ramki
 FRAME_BOTTOM_MARGIN = 60  # Dolny margines ramki
 # --- KONIEC KONFIGURACJI ---
 
+# --- KONFIGURACJA WYKRYWANIA KÓŁEK ---
+CIRCLE_MIN_RADIUS = 20  # Minimalny promień wykrywanego kółka
+CIRCLE_MAX_RADIUS = 150 # Maksymalny promień wykrywanego kółka
+# --- KONIEC KONFIGURACJI ---
+
 
 
 def get_camera():
@@ -166,7 +171,7 @@ def detect_circles(frame, FRAME_LEFT_MARGIN, FRAME_TOP_MARGIN, FRAME_WIDTH, FRAM
     gray = cv.medianBlur(gray,5)
     detected_circles = cv.HoughCircles(gray, 
         cv.HOUGH_GRADIENT, 1, 40, param1 = 200,
-        param2 = 45, minRadius = 20, maxRadius = 150
+        param2 = 45, minRadius = CIRCLE_MIN_RADIUS, maxRadius = CIRCLE_MAX_RADIUS
     )
     filtered = []
     if detected_circles is not None:
