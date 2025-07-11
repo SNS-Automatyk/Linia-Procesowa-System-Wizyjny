@@ -4,25 +4,30 @@ import cv2 as cv
 import numpy as np
 from math import floor
 from sys import getsizeof
+from picamera2 import Picamera2, Preview
 
-cam = cv.VideoCapture("/dev/video0")
+# cam = cv.VideoCapture("/dev/video0")
+picam2 = Picamera2()
+picam2.start()
 
-if not cam.isOpened():
-    print("Cannot open camera")
-    exit()
+# if not cam.isOpened():
+#     print("Cannot open camera")
+#     exit()
 
-
-ret, frame = cam.read()
+# ret, frame = cam.read()
+ret = True
+frame = picam2.capture_array()
 detected_circles = None
 old_detected_circles = None
 number_detected_circles = 0
 licznik = 0
 kontury = []
 while(True):
-    ret, frame = cam.read()
+    # ret, frame = cam.read()
+    frame = picam2.capture_array()
     licznik = licznik+1
     obiektow = 0
-    if not ret:
+    if frame is None:
         print("Can't receive frame")
         break
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
@@ -66,9 +71,8 @@ while(True):
         y = int(y) # tak, jak w macierzy
         # UWAGA! x oznacza nr wiersza, a y nr kolumny, więc x odpowiada za
         # pion, a y za poziom (odwrotnie niż zazwyczaj w Kartezjańskim ukł.)
-        
-        wierzcholki = cv.boxPoints(prostokat) #konwersja formatów
-        wierzcholki = np.int0(wierzcholki)
+
+
         rysuj = 1
         if szer*wys > 2000: # jeśli obiekt jest dość duży (7 dobrałem)
             for (a, b) in srodki:
@@ -78,7 +82,7 @@ while(True):
                     break
 
             if(rysuj):
-                cv.drawContours(frame, [wierzcholki], 0, (0,0,255), 1, 1)
+                cv.drawContours(frame, [kontur], 0, (0,0,255), 1, 1)
                 obiektow = obiektow+1
                 srodki.append((x,y))
 
@@ -133,10 +137,14 @@ while(True):
             cv.putText(frame, color, (a,b), 1, 1, (255,255, 255))
 
 
-    cv.putText(frame, "Kolek: "+str(int(detected_circles.size/3)), (270,360), 1, 1, (255,255, 255))
+    if detected_circles is not None:
+        cv.putText(frame, "Kolek: "+str(int(detected_circles.size/3)), (270,360), 1, 1, (255,255, 255))
+    else:
+        cv.putText(frame, "Kolek: 0", (270,360), 1, 1, (255,255, 255))
     cv.imshow("Obraz z kamery", frame)
     cv.imshow("Krawedzie", krawedzie)
     if cv.waitKey(1) == ord('q'):
         break
-cam.release()
+# cam.release()
+picam2.stop()
 cv.destroyAllWindows()
