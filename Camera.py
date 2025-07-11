@@ -1,3 +1,4 @@
+# This script captures video from a camera, detects significant frame changes, and uses Hough Circle Transform to detect circles. For each detected circle, it estimates the color based on the average HSV values inside the circle and displays the result on the video stream
 import cv2 as cv
 import numpy as np
 from math import floor

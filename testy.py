@@ -1,3 +1,5 @@
+# This script captures a single frame from the camera and displays it in a window.
+
 import cv2 as cv
 import numpy as np
 from math import floor

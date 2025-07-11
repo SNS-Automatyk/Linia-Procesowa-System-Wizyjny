@@ -1,3 +1,6 @@
+# This script captures video from a camera, detects contours and objects in each frame, and classifies their color using HSV color space. It displays the number and color of detected objects on the video stream.
+
+
 import cv2 as cv
 import cv2
 import numpy as np

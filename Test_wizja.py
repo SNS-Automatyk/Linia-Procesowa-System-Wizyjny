@@ -1,3 +1,5 @@
+# This script captures video from a camera, detects contours and circles in each frame, and displays debug information about the detection process. It shows the number of detected objects and circles on the video stream.
+
 import cv2 as cv
 import numpy as np
 from math import floor

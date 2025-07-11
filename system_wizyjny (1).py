@@ -1,3 +1,7 @@
+# This script captures video from a camera, detects both contours and circles in each frame, and classifies detected circles by color using HSV color space. It displays the number of detected objects and circles on the video stream.
+
+
+
 import cv2 as cv
 import numpy as np
 from math import floor
