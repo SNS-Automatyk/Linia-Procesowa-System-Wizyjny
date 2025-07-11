@@ -21,7 +21,7 @@ Software for a vision system for a process line. The project enables object dete
 
 3. Run the script:
     ```
-    python cli.py --live
+    python cli.py --live -c
     ```
 
 ## Authors
