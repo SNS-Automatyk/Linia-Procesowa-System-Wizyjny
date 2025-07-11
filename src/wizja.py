@@ -11,7 +11,7 @@ import numpy as np
 from math import floor
 
 try:
-    from picamera2 import Picamera2, Preview
+    from picamera2 import Picamera2, Preview  # type: ignore
 
     PICAMERA_AVAILABLE = True
 except ImportError:
