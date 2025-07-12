@@ -24,10 +24,20 @@ Software for a vision system for a process line. The project enables object dete
     pre-commit install
     ```
 
-3. Run the script:
-    ```
-    python cli.py --live -c
-    ```
+## Usage
+Run this to see available commands:
+
+```python
+python cli.py --help
+```
+
+Example command to run the vision system with live camera feed and circle detection:
+```
+python cli.py --live --circles
+```
+
+## Configuration
+The configuration file `src/config.py` contains parameters for the vision system, such as frame dimensions, margins, and limits for object detection repetitions. You can adjust these parameters to fit your specific use case.
 
 ## Authors
 
