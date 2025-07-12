@@ -1,6 +1,7 @@
 # This script captures video from a camera, detects both contours and circles in each frame, and classifies detected circles by color using HSV color space. It displays the number of detected objects and circles on the video stream.
 
 import os
+from .stats import Stats
 
 os.environ["LIBCAMERA_LOG_LEVELS"] = (
     "*:2"  # Ustawienie poziomu logowania dla libcamera, aby uniknąć nadmiaru informacji w konsoli
@@ -48,6 +49,8 @@ def get_camera():
 
 
 def wizja_still(contours=False, circles=True):
+    stats = Stats()
+    stats.inc("wizja_still_calls")
     get_frame, release_camera = get_camera()
     # Odrzucenie pierwszych kilku klatek (np. 3) dla stabilizacji kamery
     for _ in range(4):
@@ -138,6 +141,9 @@ def get_circle_color_info(a, b, r, frame):
         color = "rozowy"
     else:
         color = "czerwony"
+
+    stats = Stats()
+    stats.inc(f"wizja_color_{color}")
     return color, average
 
 
@@ -244,20 +250,14 @@ def detect_circles(
             ):
                 filtered.append((a1, b1, r1))
         detected_circles = np.array([filtered], dtype=np.uint16)
-        # Zbieranie informacji o kolorze
-        for pt in filtered:
-            a, b, r = pt
-            color, average = get_circle_color_info(a, b, r, frame)
-            results_circles.append(
-                {"x": a, "y": b, "r": r, "color": color, "hsv": average.tolist()}
-            )
-    text_kolek = "Circles: " + str(len(results_circles))
-    cv.putText(frame, text_kolek, (10, 65), 1, 2, (0, 0, 0), 4, cv.LINE_AA)
-    cv.putText(frame, text_kolek, (10, 65), 1, 2, (255, 255, 255), 2, cv.LINE_AA)
+
     if detected_circles is not None:
         for pt in detected_circles[0, :]:
             a, b, r = int(pt[0]), int(pt[1]), int(pt[2])
             color, average = get_circle_color_info(a, b, r, frame)
+            results_circles.append(
+                {"x": a, "y": b, "r": r, "color": color, "hsv": average.tolist()}
+            )
             cv.circle(frame, (a, b), r, (0, 255, 0), 2)
             cv.circle(frame, (a, b), 1, (0, 0, 255), 3)
             cv.putText(
@@ -282,6 +282,11 @@ def detect_circles(
                 -1,
             )
             cv.rectangle(frame, rect_top_left, rect_bottom_right, (255, 255, 255), 1)
+
+    text_kolek = "Circles: " + str(len(results_circles))
+    cv.putText(frame, text_kolek, (10, 65), 1, 2, (0, 0, 0), 4, cv.LINE_AA)
+    cv.putText(frame, text_kolek, (10, 65), 1, 2, (255, 255, 255), 2, cv.LINE_AA)
+
     return results_circles
 
 
