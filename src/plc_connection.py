@@ -7,6 +7,7 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX0.0 – start analizy (PLC ustawia na 1, Python zeruje po analizie)
 # DB1.DBX0.1 – wynik analizy (Python ustawia 0/1)
 # DB1.DBX0.2 – analiza zakończona (Python ustawia na 1 po analizie)
+# DB1.DBX0.3 – error RPi
 
 
 class LiniaCnnection:
@@ -14,7 +15,7 @@ class LiniaCnnection:
     A class to talk with linia S7 PLC.
     """
 
-    def __init__(self, ip_address, rack=0, slot=1, port=1102):
+    def __init__(self, ip_address, rack=0, slot=1, port=102):
         self.ip_address = ip_address
         self.rack = rack
         self.slot = slot
@@ -31,9 +32,10 @@ class LiniaCnnection:
         print("Połączono z PLC.")
         return True
 
-    analyze = None
-    result = None
-    finished = None
+    analyze = 0
+    result = 0
+    finished = 0
+    error = 0
 
     def read(self):
         """
@@ -49,6 +51,7 @@ class LiniaCnnection:
         self.analyze = data[0] & 0x01
         self.result = (data[0] >> 1) & 0x01
         self.finished = (data[0] >> 2) & 0x01
+        self.error = (data[0] >> 3) & 0x01
         return True
 
     def write(self):
@@ -56,38 +59,47 @@ class LiniaCnnection:
         Writes the result and finished back to the PLC.
         """
         new_byte = (
-            (self.analyze << 0) | (self.result << 1) | (self.finished << 2)
+            (self.analyze << 0)
+            | (self.result << 1)
+            | (self.finished << 2)
+            | (self.error << 3)
         )  # Bit 0 = 0 (reset startu), Bit 1 = wynik, Bit 2 = 1 (analiza zakończona)
 
         self.client.db_write(DB_NUMBER, 0, bytearray([new_byte]))
 
 
-def monitor_and_analyze(ip_address, rack=0, slot=1, port=1102):
+def monitor_and_analyze(ip_address, rack=0, slot=1, port=102):
     linia = LiniaCnnection(ip_address, rack, slot, port)
 
     while True:
+        try:
+            if linia.read() and linia.analyze:
+                print("Start analizy!")
+                try:
+                    # Tutaj można dodać kod do analizy danych
+                    wizja_result = wizja_still()
+                    print("Wynik analizy:", wizja_result)
+                    if (
+                        wizja_result
+                        and wizja_result.get("circles")
+                        and wizja_result.get("circles")[0]["color"] == "czerwony"
+                    ):
+                        print("Wykryto czerwone koło, zapisuję wynik jako 1...")
+                        linia.result = 1
+                    else:
+                        print("Nie wykryto czerwonego koła, zapisuję wynik jako 0...")
+                        linia.result = 0
 
-        if linia.read() and linia.analyze:
-            print("Start analizy!")
-            # Tutaj można dodać kod do analizy danych
-            wizja_result = wizja_still()
-            print("Wynik analizy:", wizja_result)
-            if (
-                wizja_result
-                and wizja_result.get("circles")
-                and wizja_result.get("circles")[0]["color"] == "czerwony"
-            ):
-                print("Wykryto czerwone koło, zapisuję wynik jako 1...")
-                linia.result = 1
-            else:
-                print("Nie wykryto czerwonego koła, zapisuję wynik jako 0...")
-                linia.result = 0
+                    linia.finished = 1
+                    linia.analyze = 0
+                    linia.error = 0
+                except:
+                    linia.error = 1
 
-            linia.finished = 1
-            linia.analyze = 0
-
-            linia.write()
-            print("Analiza zakończona, wynik zapisany.")
+                linia.write()
+                print("Analiza zakończona, wynik zapisany.")
+        except Exception as e:
+            print(e)
 
         time.sleep(0.2)
 
