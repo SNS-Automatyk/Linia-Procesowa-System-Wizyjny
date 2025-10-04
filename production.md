@@ -5,6 +5,8 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
 ## Kroki
 1. **Sklonuj repozytoria z GitHub:**
    ```bash
+   mkdir /home/pi/apps
+   cd /home/pi/apps
    git clone https://github.com/SNS-Automatyk/Linia-Procesowa-System-Wizyjny system-wizyjny
    git clone https://github.com/SNS-Automatyk/Panel-Sterowania-Linia-Procesowa panel-sterowania
    ```
@@ -54,8 +56,8 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
 
     [Service]
     User=pi
-    WorkingDirectory=/home/pi/myapp
-    ExecStart=/home/pi/myapp/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
+    WorkingDirectory=/home/pi/apps/system-wizyjny
+    ExecStart=/home/pi/apps/system-wizyjny/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
     Restart=always
     Environment=PYTHONUNBUFFERED=1
 
