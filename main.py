@@ -4,12 +4,23 @@ from contextlib import asynccontextmanager, suppress
 import asyncio
 import logging
 from typing import Optional
+import json
+import os
 
-from src.plc_connection import monitor_and_analyze, LiniaDataStore
+from src.plc_connection import monitor_and_analyze, LiniaDataStore, LiniaConnection
 from src.logging_utils import setup_in_memory_logging, InMemoryLogHandler
 
 data_store = LiniaDataStore()
 shutdown_event: asyncio.Event = asyncio.Event()
+
+ip_address = os.getenv("PLC_IP_ADDRESS", "127.0.0.1")
+rack = int(os.getenv("PLC_RACK", "0"))
+slot = int(os.getenv("PLC_SLOT", "1"))
+port = int(os.getenv("PLC_PORT", "102"))
+
+linia = LiniaConnection(
+    ip_address=ip_address, data_store=data_store, rack=rack, slot=slot, port=port
+)
 
 
 @asynccontextmanager
@@ -17,7 +28,7 @@ async def lifespan(app: FastAPI):
     # Configure in-memory logging once app starts
     handler = setup_in_memory_logging("system_wizyjny", level=logging.INFO, maxlen=100)
     app.state.log_handler = handler
-    asyncio.create_task(monitor_and_analyze("127.0.0.1", data_store=data_store))
+    # asyncio.create_task(monitor_and_analyze(data_store=data_store, linia=linia))
     try:
         yield
     finally:
@@ -40,6 +51,22 @@ def root():
     return data_store.dict()
 
 
+@app.put("/")
+async def root_put(data: dict):
+    """
+    Update the PLC data store with provided values.
+    Accepts JSON body with any of the fields: analyze, result, finished, error.
+    """
+    data_store.set_data(**data.get("data", {}))
+    try:
+        await linia.write()  # Write updated data to PLC
+    except Exception as e:
+        logger = logging.getLogger("system_wizyjny")
+        logger.error(f"Błąd podczas zapisu do PLC: {e}")
+        return {"status": "error", "message": str(e)}
+    return {"status": "success"}
+
+
 @app.websocket("/")
 async def root_websocket(websocket: WebSocket):
     await websocket.accept()
@@ -48,8 +75,14 @@ async def root_websocket(websocket: WebSocket):
     async def _recv_until_disconnect() -> None:
         try:
             while True:
-                # We don't expect messages, but this detects client disconnects
-                await websocket.receive_text()
+                message = await websocket.receive_text()
+                data = json.loads(message)
+                data_store.set_data(**data)
+                try:
+                    await linia.write()  # Write updated data to PLC
+                except Exception as e:
+                    logger = logging.getLogger("system_wizyjny")
+                    logger.error(f"Błąd podczas zapisu do PLC: {e}")
         except WebSocketDisconnect:
             pass
 

@@ -12,6 +12,28 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX0.2 – analiza zakończona (Python ustawia na 1 po analizie)
 # DB1.DBX0.3 – error RPi
 
+# DB1.DBX1.0 - Przyciski on/off (ten co zielony na linii)
+
+# pozostale przyciski na linii:
+# DB1.DBX1.1 - czerwony
+# DB1.DBX1.2 - zółty (z lampka)
+
+# lampki:
+# DB1.DBX1.3 - switch (status)
+# DB1.DBX1.4 - zielona
+# DB1.DBX1.5 - czerwona
+# DB1.DBX1.6 - pomarańczowa
+# DB1.DBX1.7 - biała
+
+# Zliczanie elementow:
+# DB1.DBX2.0 - dobre
+# DB1.DBX4.0 - zle
+# suma elementów (do obliczenia)
+
+# DB1.DBX6.0 - Status (np. ready, running ip)
+
+# DB1.DBX8.0 - predkosc (odczyt + zapis)
+
 logger = logging.getLogger("system_wizyjny")
 
 
@@ -26,10 +48,39 @@ class LiniaDataStore:
     finished: int = 0
     error: int = 0
 
+    on_off: int = 0
+    red_button: int = 0
+    yellow_button: int = 0
+
+    switch_status: int = 0
+    green_light: int = 0
+    red_light: int = 0
+    orange_light: int = 0
+    white_light: int = 0
+
+    good_count: int = 0
+    bad_count: int = 0
+
+    status: int = 0
+
+    speed: int = 0  # 0 - 100
+
     def __post_init__(self):
         self._subscribers = []
 
     _subscribers: list = None
+
+    def set_data(self, **kwargs):
+        for k, v in kwargs.items():
+            if k not in ("on_off", "red_button", "yellow_button", "speed"):
+                continue
+            if hasattr(self, k):
+                setattr(self, k, v)
+        for q in self._subscribers:
+            try:
+                q.put_nowait(self)
+            except asyncio.QueueFull:
+                pass  # If the queue is full, we skip notifying this subscriber
 
     def dict(self):
         exclude_fields = ("_subscribers",)
@@ -39,18 +90,50 @@ class LiniaDataStore:
             if ((v is not None) and (k not in exclude_fields))
         }
 
-    def from_byte(self, byte):
-        self.analyze = byte & 0x01
-        self.result = (byte >> 1) & 0x01
-        self.finished = (byte >> 2) & 0x01
-        self.error = (byte >> 3) & 0x01
+    def from_bytes(self, from_bytes: bytes):
+        self.analyze = from_bytes[0] & 0x01
+        self.result = (from_bytes[0] >> 1) & 0x01
+        self.finished = (from_bytes[0] >> 2) & 0x01
+        self.error = (from_bytes[0] >> 3) & 0x01
 
-    def to_byte(self):
+        self.on_off = from_bytes[1] & 0x01
+        self.red_button = (from_bytes[1] >> 1) & 0x01
+        self.yellow_button = (from_bytes[1] >> 2) & 0x01
+        self.switch_status = (from_bytes[1] >> 3) & 0x01
+        self.green_light = (from_bytes[1] >> 4) & 0x01
+        self.red_light = (from_bytes[1] >> 5) & 0x01
+        self.orange_light = (from_bytes[1] >> 6) & 0x01
+        self.white_light = (from_bytes[1] >> 7) & 0x01
+
+        self.good_count = int.from_bytes(from_bytes[2:4], byteorder="big")
+        self.bad_count = int.from_bytes(from_bytes[4:6], byteorder="big")
+
+        self.status = int.from_bytes(from_bytes[6:8], byteorder="big")
+
+        self.speed = int.from_bytes(from_bytes[8:10], byteorder="big")
+
+    def to_bytes(self):
         return (
-            (self.analyze << 0)
-            | (self.result << 1)
-            | (self.finished << 2)
-            | (self.error << 3)
+            bytearray(
+                [
+                    (self.analyze << 0)
+                    | (self.result << 1)
+                    | (self.finished << 2)
+                    | (self.error << 3),
+                    (self.on_off << 0)
+                    | (self.red_button << 1)
+                    | (self.yellow_button << 2)
+                    | (self.switch_status << 3)
+                    | (self.green_light << 4)
+                    | (self.red_light << 5)
+                    | (self.orange_light << 6)
+                    | (self.white_light << 7),
+                ]
+            )
+            + self.good_count.to_bytes(2, byteorder="big")
+            + self.bad_count.to_bytes(2, byteorder="big")
+            + self.status.to_bytes(2, byteorder="big")
+            + self.speed.to_bytes(2, byteorder="big")
         )
 
     def subscribe(self) -> asyncio.Queue:
@@ -63,7 +146,7 @@ class LiniaDataStore:
             self._subscribers.remove(q)
 
 
-class LiniaCnnection:
+class LiniaConnection:
     """
     A class to talk with linia S7 PLC.
     """
@@ -92,30 +175,29 @@ class LiniaCnnection:
     # finished = 0
     # error = 0
 
-    def read(self):
+    async def read(self):
         """
         Reads the data from the PLC.
         """
         if not self.client.get_connected():
             self.connect()  # Ensure connection is established
         try:
-            data = self.client.db_read(DB_NUMBER, 0, 1)
+            data = self.client.db_read(DB_NUMBER, 0, 10)
         except Exception as e:
             logger.error(f"Błąd odczytu danych z PLC: {e}")
             return False
-        byte_value = data[0]
-        self.data_store.from_byte(byte_value)
+        self.data_store.from_bytes(bytes_values=data)
         return True
 
-    def write(self):
+    async def write(self):
         """
         Writes the result and finished back to the PLC.
         """
-        new_byte = self.data_store.to_byte()
+        new_bytes = self.data_store.to_bytes()
         if not self.client.get_connected():
             self.connect()  # Ensure connection is established
 
-        self.client.db_write(DB_NUMBER, 0, bytearray([new_byte]))
+        self.client.db_write(DB_NUMBER, 0, new_bytes)
 
 
 def _should_detect_red_circle(result: dict) -> bool:
@@ -129,12 +211,11 @@ def _should_detect_red_circle(result: dict) -> bool:
         return False
 
 
-async def monitor_and_analyze(ip_address, data_store, rack=0, slot=1, port=102):
-    linia = LiniaCnnection(ip_address, data_store, rack, slot, port)
+async def monitor_and_analyze(data_store, linia):
 
     while True:
         try:
-            if linia.read() and data_store.analyze:
+            if await linia.read() and data_store.analyze:
                 logger.info("Start analizy!")
                 try:
                     # Tutaj można dodać kod do analizy danych
@@ -156,7 +237,7 @@ async def monitor_and_analyze(ip_address, data_store, rack=0, slot=1, port=102):
                     logger.exception(f"Błąd podczas analizy: {e}")
                     data_store.error = 1
 
-                linia.write()
+                await linia.write()
                 logger.info("Analiza zakończona, wynik zapisany.")
         except Exception as e:
             logger.exception(str(e))
