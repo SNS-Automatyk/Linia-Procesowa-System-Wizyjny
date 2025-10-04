@@ -6,6 +6,9 @@ import logging
 from typing import Optional
 import json
 import os
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import mimetypes
 
 from src.plc_connection import monitor_and_analyze, LiniaDataStore, LiniaConnection
 from src.logging_utils import setup_in_memory_logging, InMemoryLogHandler
@@ -250,6 +253,45 @@ async def logs_websocket(websocket: WebSocket):
                     await t
         with suppress(Exception):
             await websocket.close(code=1001)
+
+
+# Statyki Vue
+DIST = os.environ.get(
+    "DIST_PATH",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "panel-sterowania/dist"),
+)
+app.mount("/assets", StaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
+
+# Ensure correct content type for web manifest files
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+
+# Expose additional top-level static files emitted by Vite public/
+app.mount("/favicon.ico", StaticFiles(directory=DIST), name="favicon")
+app.mount("/apple-touch-icon.png", StaticFiles(directory=DIST), name="apple-touch-icon")
+app.mount(
+    "/android-chrome-192x192.png",
+    StaticFiles(directory=DIST),
+    name="android-chrome-192x192",
+)
+app.mount(
+    "/android-chrome-384x384.png",
+    StaticFiles(directory=DIST),
+    name="android-chrome-384x384",
+)
+app.mount("/browserconfig.xml", StaticFiles(directory=DIST), name="browserconfig")
+app.mount("/favicon-16x16.png", StaticFiles(directory=DIST), name="favicon-16x16")
+app.mount("/favicon-32x32.png", StaticFiles(directory=DIST), name="favicon-32x32")
+app.mount("/mstile-150x150.png", StaticFiles(directory=DIST), name="mstile-150x150")
+app.mount(
+    "/safari-pinned-tab.svg", StaticFiles(directory=DIST), name="safari-pinned-tab"
+)
+app.mount("/site.webmanifest", StaticFiles(directory=DIST), name="site-webmanifest")
+
+
+# SPA fallback: wszystko co nie /api i nie /ws zwraca index.html
+@app.get("/{full_path:path}")
+def spa(full_path: str):
+    return FileResponse(os.path.join(DIST, "index.html"))
 
 
 def main():
