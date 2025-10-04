@@ -2,6 +2,7 @@ import snap7
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 
 from .wizja import wizja_still
 
@@ -16,7 +17,7 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 
 # pozostale przyciski na linii:
 # DB1.DBX1.1 - czerwony
-# DB1.DBX1.2 - zółty (z lampka)
+# DB1.DBX1.2 - zółty (z lampka DB1.DBX0.7)
 
 # lampki:
 # DB1.DBX1.3 - switch (status)
@@ -24,6 +25,7 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX1.5 - czerwona
 # DB1.DBX1.6 - pomarańczowa
 # DB1.DBX1.7 - biała
+# DB1.DBX0.7 - zółta (przycisk DB1.DBX1.2 z lampką)
 
 # Zliczanie elementow:
 # DB1.DBX2.0 - dobre
@@ -56,6 +58,7 @@ class LiniaDataStore:
     green_light: int = 0
     red_light: int = 0
     orange_light: int = 0
+    yellow_button_light: int = 0
     white_light: int = 0
 
     good_count: int = 0
@@ -65,10 +68,17 @@ class LiniaDataStore:
 
     speed: int = 0  # 0 - 100
 
+    _last_connected: datetime = None
+    _subscribers: list = None
+
+    @property
+    def is_connected(self) -> bool:
+        if self._last_connected is None:
+            return False
+        return (datetime.now() - self._last_connected).total_seconds() <= 2
+
     def __post_init__(self):
         self._subscribers = []
-
-    _subscribers: list = None
 
     def set_data(self, **kwargs):
         for k, v in kwargs.items():
@@ -76,6 +86,9 @@ class LiniaDataStore:
                 continue
             if hasattr(self, k):
                 setattr(self, k, v)
+                # test
+                if k == "on_off" and v == 1:
+                    self.green_light = 1 - self.green_light
         for q in self._subscribers:
             try:
                 q.put_nowait(self)
@@ -83,12 +96,17 @@ class LiniaDataStore:
                 pass  # If the queue is full, we skip notifying this subscriber
 
     def dict(self):
-        exclude_fields = ("_subscribers",)
+        exclude_fields = []
+        extra_fields = ["is_connected"]
         return {
             k: v
             for (k, v) in self.__dict__.items()
-            if ((v is not None) and (k not in exclude_fields))
-        }
+            if (
+                (v is not None)
+                and (not k.startswith("_"))
+                and (k not in exclude_fields)
+            )
+        } | {k: getattr(self, k) for k in extra_fields}
 
     def from_bytes(self, from_bytes: bytes):
         self.analyze = from_bytes[0] & 0x01
@@ -103,6 +121,7 @@ class LiniaDataStore:
         self.green_light = (from_bytes[1] >> 4) & 0x01
         self.red_light = (from_bytes[1] >> 5) & 0x01
         self.orange_light = (from_bytes[1] >> 6) & 0x01
+        self.yellow_button_light = (from_bytes[0] >> 7) & 0x01
         self.white_light = (from_bytes[1] >> 7) & 0x01
 
         self.good_count = int.from_bytes(from_bytes[2:4], byteorder="big")
@@ -119,7 +138,8 @@ class LiniaDataStore:
                     (self.analyze << 0)
                     | (self.result << 1)
                     | (self.finished << 2)
-                    | (self.error << 3),
+                    | (self.error << 3)
+                    | (self.yellow_button_light << 7),
                     (self.on_off << 0)
                     | (self.red_button << 1)
                     | (self.yellow_button << 2)
@@ -167,6 +187,7 @@ class LiniaConnection:
         except Exception as e:
             logger.error(f"Błąd połączenia z PLC: {e}")
             return False
+        self.data_store._last_connected = datetime.now()
         logger.info("Połączono z PLC.")
         return True
 
@@ -187,6 +208,7 @@ class LiniaConnection:
             logger.error(f"Błąd odczytu danych z PLC: {e}")
             return False
         self.data_store.from_bytes(bytes_values=data)
+        self.data_store._last_connected = datetime.now()
         return True
 
     async def write(self):
@@ -198,6 +220,8 @@ class LiniaConnection:
             self.connect()  # Ensure connection is established
 
         self.client.db_write(DB_NUMBER, 0, new_bytes)
+        self.data_store._last_connected = datetime.now()
+        return True
 
 
 def _should_detect_red_circle(result: dict) -> bool:

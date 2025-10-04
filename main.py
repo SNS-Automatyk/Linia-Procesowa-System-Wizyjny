@@ -48,7 +48,10 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return data_store.dict()
+    return {
+        "status": "success",
+        "data": data_store.dict(),
+    }
 
 
 @app.put("/")
@@ -77,7 +80,7 @@ async def root_websocket(websocket: WebSocket):
             while True:
                 message = await websocket.receive_text()
                 data = json.loads(message)
-                data_store.set_data(**data)
+                data_store.set_data(**data.get("data", {}))
                 try:
                     await linia.write()  # Write updated data to PLC
                 except Exception as e:
@@ -109,7 +112,12 @@ async def root_websocket(websocket: WebSocket):
             # Otherwise, we have data to send
             if q_task in done:
                 data = q_task.result()
-                await websocket.send_json(data.dict())
+                await websocket.send_json(
+                    {
+                        "status": "update",
+                        "data": data.dict(),
+                    }
+                )
                 # re-arm queue waiter
                 q_task = asyncio.create_task(q.get())
     except WebSocketDisconnect:
