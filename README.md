@@ -81,7 +81,7 @@ gdzie `--ip` jest adresem IP PLC.
 Plik konfiguracyjny `src/config.py` zawiera parametry dla systemu wizyjnego, takie jak wymiary klatki, marginesy i limity dla powtórzeń wykrywania obiektów. Możesz dostosować te parametry, aby dopasować je do swojego konkretnego przypadku użycia.
 
 ## Konfiguracja produkcyjna
-Instrukcje dotyczące konfiguracji produkcyjnej znajdują się w pliku [`PRODUCTION.md`](PRODUCTION.md).
+Instrukcje dotyczące konfiguracji produkcyjnej znajdują się w pliku [`production.md`](production.md).
 
 ## Autorzy
 Projekt stworzony w ramach prac nad systemem wizyjnym dla linii procesowej przez zespół SNS Automatyk PWr:

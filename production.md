@@ -21,6 +21,18 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
     uv venv
     uv activate
     uv sync
+    sudo apt-get install python3-opencv
+    ```
+4. Zainstaluj natywną bibliotekę snap7 (`libsnap7.so`):
+    ```
+    sudo apt update
+    sudo apt install git build-essential cmake
+    cd /tmp
+    git clone https://github.com/gijzelaerr/snap7.git
+    cd snap7/build/unix
+    make -f arm_v7_linux.mk -j4
+    sudo cp ../bin/arm_v7-linux/libsnap7.so /usr/local/lib/
+    sudo ldconfig
     ```
 4. Stwórz plik `.env` w katalogu `system-wizyjny` z następującą zawartością:
     ```
