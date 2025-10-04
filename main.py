@@ -75,6 +75,9 @@ async def root_websocket(websocket: WebSocket):
     await websocket.accept()
     q = data_store.subscribe()
 
+    data = data_store.dict()
+    await websocket.send_json({"status": "init", "data": data})  # Send initial data
+
     async def _recv_until_disconnect() -> None:
         try:
             while True:
