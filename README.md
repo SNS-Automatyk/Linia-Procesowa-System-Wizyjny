@@ -1,56 +1,70 @@
-# Linia Procesowa: Vision System
+# Linia Przenośnikowa - System Wizyjny (SNS Automatyk PWr)
 
-Software for a vision system for a process line. The project enables object detection as well as color and shape recognition (mainly circles) based on camera images. The system can be used for automatic inspection of products on a production line.
+Oprogramowanie systemu wizyjnego dla linii produkcyjnej. Projekt umożliwia wykrywanie obiektów oraz rozpoznawanie kolorów i kształtów (głównie kół) na podstawie obrazów z kamery. System może być używany do automatycznej inspekcji produktów na linii produkcyjnej. 
+System komunikuje się z PLC (Programmable Logic Controller) za pomocą protokołu snap7, umożliwiając integrację z istniejącą infrastrukturą przemysłową.
+System udostępnia interfejs wiersza poleceń (CLI) do konfiguracji i uruchamiania różnych trybów pracy, takich jak podgląd na żywo z kamery, tryb produkcyjny oraz testowanie wykrywania kół.
+System udostępnia również API (napisane w FastAPI) do zdalnego monitorowania i sterowania systemem wizyjnym np. z poziomu aplikacji webowej.
 
-## Requirements
+## Wymagania wstępne
 
 - Python 3.x
 - OpenCV
 
-## Installation
+## Instalacja
 
-1. Install the required libraries:
+1. Zainstaluj uv (manager pakietów i środowisk wirtualnych):
     ```
-    pip install numpy python-snap7
+    pip install uv
     ```
 
-2. Install OpenCV:
-On Ubuntu or Debian-based systems, you can install OpenCV using:
+2. Utwórz i aktywuj środowisko wirtualne:
+    ```
+    uv venv
+    uv activate
+    ```
+
+3. Zainstaluj wymagane pakiety:
+    ```
+    uv sync
+    ```
+
+2. Zainstaluj OpenCV:
+Na systemach Ubuntu lub Debian możesz zainstalować OpenCV za pomocą:
     ```
     sudo apt-get install python3-opencv
     ```
-    On other systems, you can install it via pip:
+    Na innych systemach możesz zainstalować go za pomocą pip:
 
     ```
     pip install opencv-python
     ```
 
-2. Set up pre-commit hooks to ensure code quality:
+2. Skonfiguruj hooki pre-commit, aby zapewnić jakość kodu:
     ```
     pre-commit install
     ```
 
-## Usage
-Run this to see available commands:
+## Wykorzystanie
+Uruchom to, aby zobaczyć dostępne polecenia:
 
 ```python
 python cli.py --help
 ```
 
-Example command to run the vision system with live camera feed and circle detection:
+Przykładowe polecenie uruchamiające system wizyjny z podglądem na żywo z kamery i wykrywaniem kół:
 ```
 python cli.py --live --circles
 ```
 
-Example command to run the snap7 PLC connection and work in production mode:
+Przykładowe polecenie uruchamiające połączenie z PLC snap7 i pracujące w trybie produkcyjnym:
 ```
 python cli.py --plc --ip 192.168.0.1
 ```
-where `--ip` is the IP address of the PLC.
+gdzie `--ip` jest adresem IP PLC.
 
 > **Note:**  
-> If you see an error like `can't find snap7 shared library`, you need to install the native snap7 library (`libsnap7.so`).  
-> On Raspberry Pi or ARM Linux, run:
+> Jeśli zobaczysz błąd taki jak `can't find snap7 shared library`, musisz zainstalować natywną bibliotekę snap7 (`libsnap7.so`).  
+> Na Raspberry Pi lub ARM Linux uruchom następujące polecenia:
 > ```
 > sudo apt update
 > sudo apt install git build-essential cmake
@@ -61,11 +75,15 @@ where `--ip` is the IP address of the PLC.
 > sudo cp ../bin/arm_v7-linux/libsnap7.so /usr/local/lib/
 > sudo ldconfig
 > ```
-> Then try running the command again.
+> Następnie spróbuj ponownie uruchomić polecenie.
 
-## Configuration
-The configuration file `src/config.py` contains parameters for the vision system, such as frame dimensions, margins, and limits for object detection repetitions. You can adjust these parameters to fit your specific use case.
+## Konfiguracja
+Plik konfiguracyjny `src/config.py` zawiera parametry dla systemu wizyjnego, takie jak wymiary klatki, marginesy i limity dla powtórzeń wykrywania obiektów. Możesz dostosować te parametry, aby dopasować je do swojego konkretnego przypadku użycia.
 
-## Authors
+## Konfiguracja produkcyjna
+Instrukcje dotyczące konfiguracji produkcyjnej znajdują się w pliku [`PRODUCTION.md`](PRODUCTION.md).
 
-Project created as part of work on a vision system for a process line
+## Autorzy
+Projekt stworzony w ramach prac nad systemem wizyjnym dla linii procesowej przez zespół SNS Automatyk PWr:
+- [Marvin Ruciński](https://github.com/marvinrucinski)
+- Zuzanna Gorczyca
