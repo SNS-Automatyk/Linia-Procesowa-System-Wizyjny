@@ -26,6 +26,19 @@ class LiniaDataStore:
     finished: int = 0
     error: int = 0
 
+    def __post_init__(self):
+        self._subscribers = []
+
+    _subscribers: list = None
+
+    def dict(self):
+        exclude_fields = ("_subscribers",)
+        return {
+            k: v
+            for (k, v) in self.__dict__.items()
+            if ((v is not None) and (k not in exclude_fields))
+        }
+
     def from_byte(self, byte):
         self.analyze = byte & 0x01
         self.result = (byte >> 1) & 0x01
@@ -39,6 +52,15 @@ class LiniaDataStore:
             | (self.finished << 2)
             | (self.error << 3)
         )
+
+    def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=100)
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue):
+        if q in self._subscribers:
+            self._subscribers.remove(q)
 
 
 class LiniaCnnection:
