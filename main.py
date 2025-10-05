@@ -6,12 +6,13 @@ import logging
 from typing import Optional
 import json
 import os
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 import mimetypes
 
 from src.plc_connection import monitor_and_analyze, LiniaDataStore, LiniaConnection
 from src.logging_utils import setup_in_memory_logging, InMemoryLogHandler
+from src.camera import Camera
 
 data_store = LiniaDataStore()
 shutdown_event: asyncio.Event = asyncio.Event()
@@ -24,6 +25,7 @@ port = int(os.getenv("PLC_PORT", "102"))
 linia = LiniaConnection(
     ip_address=ip_address, data_store=data_store, rack=rack, slot=slot, port=port
 )
+camera = Camera()
 
 
 @asynccontextmanager
@@ -37,6 +39,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Signal all handlers to stop promptly
         shutdown_event.set()
+        camera.stop()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -253,6 +256,14 @@ async def logs_websocket(websocket: WebSocket):
                     await t
         with suppress(Exception):
             await websocket.close(code=1001)
+
+
+@app.get("/camera")
+async def camera_stream():
+    return StreamingResponse(
+        camera.mjpeg_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 # Statyki Vue

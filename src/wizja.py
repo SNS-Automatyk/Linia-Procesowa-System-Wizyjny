@@ -14,34 +14,7 @@ from .config import (
     FRAME_BOTTOM_MARGIN,
     STILL_REPETITION_LIMIT,
 )
-
-os.environ["LIBCAMERA_LOG_LEVELS"] = (
-    "*:2"  # Ustawienie poziomu logowania dla libcamera, aby uniknąć nadmiaru informacji w konsoli
-)
-
-try:
-    from picamera2 import Picamera2, Preview  # type: ignore
-
-    PICAMERA_AVAILABLE = True
-except ImportError:
-    PICAMERA_AVAILABLE = False
-
-
-def get_camera():
-    if PICAMERA_AVAILABLE:
-        picam2 = Picamera2()
-        picam2.start()
-        # Zamiana kanałów BGR <-> RGB dla Picamera2
-        get_frame = lambda: cv.cvtColor(picam2.capture_array(), cv.COLOR_RGB2BGR)
-        release_camera = lambda: picam2.stop()
-    else:
-        cam = cv.VideoCapture(0)
-        if not cam.isOpened():
-            print("Cannot open camera")
-            exit()
-        get_frame = lambda: cam.read()[1]
-        release_camera = lambda: cam.release()
-    return get_frame, release_camera
+from .camera import Camera
 
 
 def save_image_with_metadata(frame, result):
@@ -72,16 +45,17 @@ def save_image_with_metadata(frame, result):
         json.dump(result, f)
 
 
-def wizja_still(contours=False, circles=True, save_image=True):
+def wizja_still(contours=False, circles=True, save_image=True, camera=None):
+    if not camera:
+        camera = Camera()
     stats = Stats()
     stats.inc("wizja_still_calls")
-    get_frame, release_camera = get_camera()
     # Odrzucenie pierwszych kilku klatek (np. 2) dla stabilizacji kamery
     for _ in range(2):
-        frame = get_frame()
+        frame = camera.get_frame()
     if frame is None:
         print("Can't receive frame")
-        release_camera()
+        camera.release()
         return
 
     repetition = 0
@@ -92,15 +66,15 @@ def wizja_still(contours=False, circles=True, save_image=True):
         and circles
         and (not result or not result["circles"])
     ):
-        frame = get_frame()
+        frame = camera.get_frame()
         if frame is None:
             print("Can't receive frame")
-            release_camera()
+            camera.release()
             return
         repetition += 1
         result = find_objects(frame, contours=contours, circles=circles, annotate=False)
 
-    release_camera()
+    camera.release()
 
     if save_image:
         save_image_with_metadata(frame, result)
@@ -111,10 +85,12 @@ def wizja_still(contours=False, circles=True, save_image=True):
 def wizja_live(
     contours=False,  # Czy wykrywać kontury
     circles=True,  # Czy wykrywać kółka
+    camera=None,  # Obiekt kamery (jeśli None, zostanie utworzony nowy)
 ):
-    get_frame, release_camera = get_camera()
+    if not camera:
+        camera = Camera()
     while True:
-        frame = get_frame()
+        frame = camera.get_frame()
         if frame is None:
             print("Can't receive frame")
             break
@@ -124,7 +100,7 @@ def wizja_live(
         # cv.imshow("Krawedzie", krawedzie)
         if cv.waitKey(1) == ord("q"):
             break
-    release_camera()
+    camera.release()
     cv.destroyAllWindows()
 
 
