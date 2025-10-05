@@ -19,6 +19,8 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX1.1 - czerwony
 # DB1.DBX1.2 - zółty (z lampka DB1.DBX0.7)
 
+# DB1.DBX0.6 - on/off system wizyjny
+
 # lampki:
 # DB1.DBX1.3 - switch (status)
 # DB1.DBX1.4 - zielona
@@ -54,6 +56,8 @@ class LiniaDataStore:
     red_button: int = 0
     yellow_button: int = 0
 
+    system_wizyjny_on_off: int = 0
+
     switch_status: int = 0
     green_light: int = 0
     red_light: int = 0
@@ -82,7 +86,13 @@ class LiniaDataStore:
 
     def set_data(self, **kwargs):
         for k, v in kwargs.items():
-            if k not in ("on_off", "red_button", "yellow_button", "speed"):
+            if k not in (
+                "on_off",
+                "red_button",
+                "yellow_button",
+                "speed",
+                "system_wizyjny_on_off",
+            ):
                 continue
             if hasattr(self, k):
                 setattr(self, k, v)
@@ -114,6 +124,8 @@ class LiniaDataStore:
         self.finished = (from_bytes[0] >> 2) & 0x01
         self.error = (from_bytes[0] >> 3) & 0x01
 
+        self.system_wizyjny_on_off = (from_bytes[0] >> 6) & 0x01
+
         self.on_off = from_bytes[1] & 0x01
         self.red_button = (from_bytes[1] >> 1) & 0x01
         self.yellow_button = (from_bytes[1] >> 2) & 0x01
@@ -139,6 +151,7 @@ class LiniaDataStore:
                     | (self.result << 1)
                     | (self.finished << 2)
                     | (self.error << 3)
+                    | (self.system_wizyjny_on_off << 6)
                     | (self.yellow_button_light << 7),
                     (self.on_off << 0)
                     | (self.red_button << 1)

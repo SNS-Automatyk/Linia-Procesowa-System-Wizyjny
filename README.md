@@ -62,6 +62,12 @@ python cli.py --plc --ip 192.168.0.1
 ```
 gdzie `--ip` jest adresem IP PLC.
 
+### FastAPI
+Aby uruchomić deweloperski serwer API FastAPI, użyj następującego polecenia:
+```
+fastapi dev main.py
+```
+
 > **Note:**  
 > Jeśli zobaczysz błąd taki jak `can't find snap7 shared library`, musisz zainstalować natywną bibliotekę snap7 (`libsnap7.so`).  
 > Na Raspberry Pi lub ARM Linux uruchom następujące polecenia:
