@@ -3,6 +3,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+import struct
 
 from .wizja import wizja_still
 
@@ -13,30 +14,29 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX0.2 – analiza zakończona (Python ustawia na 1 po analizie)
 # DB1.DBX0.3 – error RPi
 
-# DB1.DBX1.0 - Przyciski on/off (ten co zielony na linii)
+# DB1.DBX0.4 - on/off system wizyjny
+# DB1.DBX0.5 - Przycisk on/off (zielony przycisk)
 
-# pozostale przyciski na linii:
-# DB1.DBX1.1 - czerwony
-# DB1.DBX1.2 - zółty (z lampka DB1.DBX0.7)
-
-# DB1.DBX0.6 - on/off system wizyjny
+# DB1.DBX0.6 - czerwony przycisk
 
 # lampki:
-# DB1.DBX1.3 - switch (status)
-# DB1.DBX1.4 - zielona
-# DB1.DBX1.5 - czerwona
-# DB1.DBX1.6 - pomarańczowa
-# DB1.DBX1.7 - biała
-# DB1.DBX0.7 - zółta (przycisk DB1.DBX1.2 z lampką)
+# DB1.DBX0.7 - switch (status)
+# DB1.DBX1.0 - zielona
+# DB1.DBX1.1 - czerwona
+# DB1.DBX1.2 - pomarańczowa
+# DB1.DBX1.3 - biała
+# DB1.DBX1.4 - zółta (przycisk DB1.DBX1.5 z lampką)
+
+# DB1.DBX1.5 - zółty przycisk (z lampką DB1.DBX1.5)
 
 # Zliczanie elementow:
-# DB1.DBX2.0 - dobre
-# DB1.DBX4.0 - zle
-# suma elementów (do obliczenia)
+# DB1.DBX2.0 - dobre 2B
+# DB1.DBX4.0 - zle 2B
+# DB1.DBX6.0 - suma elementów (do obliczenia)
 
-# DB1.DBX6.0 - Status (np. ready, running ip)
+# DB1.DBX8.0 - predkosc (Real) (odczyt + zapis) 4B od -100 do 100
 
-# DB1.DBX8.0 - predkosc (odczyt + zapis)
+# DB1.DBX12.0 - Status (Int) 2B
 
 logger = logging.getLogger("system_wizyjny")
 
@@ -70,7 +70,7 @@ class LiniaDataStore:
 
     status: int = 0
 
-    speed: int = 0  # 0 - 100
+    speed: float = 0  # -100 - 100
 
     _last_connected: datetime = None
     _subscribers: list = None
@@ -123,51 +123,59 @@ class LiniaDataStore:
         self.result = (from_bytes[0] >> 1) & 0x01
         self.finished = (from_bytes[0] >> 2) & 0x01
         self.error = (from_bytes[0] >> 3) & 0x01
+        self.system_wizyjny_on_off = (from_bytes[0] >> 4) & 0x01
+        self.on_off = (from_bytes[0] >> 5) & 0x01
+        self.red_button = (from_bytes[0] >> 6) & 0x01
+        self.switch_status = (from_bytes[0] >> 7) & 0x01
 
-        self.system_wizyjny_on_off = (from_bytes[0] >> 6) & 0x01
-
-        self.on_off = from_bytes[1] & 0x01
-        self.red_button = (from_bytes[1] >> 1) & 0x01
-        self.yellow_button = (from_bytes[1] >> 2) & 0x01
-        self.switch_status = (from_bytes[1] >> 3) & 0x01
-        self.green_light = (from_bytes[1] >> 4) & 0x01
-        self.red_light = (from_bytes[1] >> 5) & 0x01
-        self.orange_light = (from_bytes[1] >> 6) & 0x01
-        self.yellow_button_light = (from_bytes[0] >> 7) & 0x01
-        self.white_light = (from_bytes[1] >> 7) & 0x01
+        self.green_light = (from_bytes[1] >> 0) & 0x01
+        self.red_light = (from_bytes[1] >> 1) & 0x01
+        self.orange_light = (from_bytes[1] >> 2) & 0x01
+        self.white_light = (from_bytes[1] >> 3) & 0x01
+        self.yellow_button_light = (from_bytes[1] >> 4) & 0x01
+        self.yellow_button = (from_bytes[1] >> 5) & 0x01
 
         self.good_count = int.from_bytes(from_bytes[2:4], byteorder="big")
         self.bad_count = int.from_bytes(from_bytes[4:6], byteorder="big")
 
-        self.status = int.from_bytes(from_bytes[6:8], byteorder="big")
+        # DB1.DBX8.0 - predkosc (Real) 4B (IEEE-754 float, big-endian)
+        if len(from_bytes) >= 12:
+            try:
+                self.speed = struct.unpack(">f", from_bytes[8:12])[0]
+            except struct.error:
+                pass
 
-        self.speed = int.from_bytes(from_bytes[8:10], byteorder="big")
+        if len(from_bytes) >= 14:
+            self.status = int.from_bytes(from_bytes[12:14], byteorder="big")
 
     def to_bytes(self):
-        return (
-            bytearray(
-                [
-                    (self.analyze << 0)
-                    | (self.result << 1)
-                    | (self.finished << 2)
-                    | (self.error << 3)
-                    | (self.system_wizyjny_on_off << 6)
-                    | (self.yellow_button_light << 7),
-                    (self.on_off << 0)
-                    | (self.red_button << 1)
-                    | (self.yellow_button << 2)
-                    | (self.switch_status << 3)
-                    | (self.green_light << 4)
-                    | (self.red_light << 5)
-                    | (self.orange_light << 6)
-                    | (self.white_light << 7),
-                ]
-            )
-            + self.good_count.to_bytes(2, byteorder="big")
-            + self.bad_count.to_bytes(2, byteorder="big")
-            + self.status.to_bytes(2, byteorder="big")
-            + self.speed.to_bytes(2, byteorder="big")
+        # First two bytes: bitfields matching from_bytes mapping
+        header = bytearray(
+            [
+                (self.analyze << 0)
+                | (self.result << 1)
+                | (self.finished << 2)
+                | (self.error << 3)
+                | (self.system_wizyjny_on_off << 4)
+                | (self.on_off << 5)
+                | (self.red_button << 6)
+                | (self.switch_status << 7),
+                (self.green_light << 0)
+                | (self.red_light << 1)
+                | (self.orange_light << 2)
+                | (self.white_light << 3)
+                | (self.yellow_button_light << 4)
+                | (self.yellow_button << 5),
+            ]
         )
+
+        payload = bytearray()
+        payload += self.good_count.to_bytes(2, byteorder="big")
+        payload += self.bad_count.to_bytes(2, byteorder="big")
+        payload += bytearray(2)  # reserved bytes at offsets 6-7
+        payload += struct.pack(">f", float(self.speed))  # speed at 8-11 as REAL
+        payload += self.status.to_bytes(2, byteorder="big")
+        return header + payload
 
     def subscribe(self) -> asyncio.Queue:
         q: asyncio.Queue = asyncio.Queue(maxsize=100)
@@ -216,11 +224,12 @@ class LiniaConnection:
         if not self.client.get_connected():
             self.connect()  # Ensure connection is established
         try:
-            data = self.client.db_read(DB_NUMBER, 0, 10)
+            # Read through status at DBX12.0 (2 bytes) => total 14 bytes
+            data = self.client.db_read(DB_NUMBER, 0, 14)
         except Exception as e:
             logger.error(f"Błąd odczytu danych z PLC: {e}")
             return False
-        self.data_store.from_bytes(bytes_values=data)
+        self.data_store.from_bytes(data)
         self.data_store._last_connected = datetime.now()
         return True
 
