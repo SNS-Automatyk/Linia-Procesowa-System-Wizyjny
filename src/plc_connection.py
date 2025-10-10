@@ -98,13 +98,9 @@ class LiniaDataStore:
             if hasattr(self, k):
                 setattr(self, k, v)
                 # test
-                if k == "on_off" and v == 1:
-                    self.green_light = 1 - self.green_light
-        for q in self._subscribers:
-            try:
-                q.put_nowait(self)
-            except asyncio.QueueFull:
-                pass  # If the queue is full, we skip notifying this subscriber
+                # if k == "on_off" and v == 1:
+                #     self.green_light = 1 - self.green_light
+        self.notify_subsribers()
 
     def dict(self):
         exclude_fields = []
@@ -149,6 +145,8 @@ class LiniaDataStore:
         if len(from_bytes) >= 14:
             self.status = int.from_bytes(from_bytes[12:14], byteorder="big")
 
+        self.notify_subsribers()
+
     def to_bytes(self):
         # First two bytes: bitfields matching from_bytes mapping
         header = bytearray(
@@ -187,6 +185,13 @@ class LiniaDataStore:
         if q in self._subscribers:
             self._subscribers.remove(q)
 
+    def notify_subsribers(self):
+        for q in self._subscribers:
+            try:
+                q.put_nowait(self)
+            except asyncio.QueueFull:
+                pass  # If the queue is full, we skip notifying this subscriber
+
 
 class LiniaConnection:
     """
@@ -222,11 +227,6 @@ class LiniaConnection:
         self.data_store._last_connected = datetime.now()
         logger.info("Połączono z PLC.")
         return True
-
-    # analyze = 0
-    # result = 0
-    # finished = 0
-    # error = 0
 
     async def read(self):
         """
