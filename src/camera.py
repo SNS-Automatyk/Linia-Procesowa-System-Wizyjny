@@ -43,8 +43,9 @@ class Camera:
             self.get_frame = lambda: self.cam.read()[1]
             self.release = lambda: self.cam.release()
 
-        self.thread = threading.Thread(target=self._reader, daemon=True)
-        self.thread.start()
+        # Powoduje segmentation fault
+        # self.thread = threading.Thread(target=self._reader, daemon=True)
+        # self.thread.start()
 
     def _reader(self):
         while self.running:
@@ -54,14 +55,14 @@ class Camera:
             ok, jpg = cv.imencode(".jpg", frame, [int(cv.IMWRITE_JPEG_QUALITY), 70])
             if not ok:
                 continue
-            with self.lock:
-                self.frame = jpg.tobytes()
+            # with self.lock:
+            self.frame = jpg.tobytes()
 
     async def mjpeg_generator(self):
         while self.running:
             await asyncio.sleep(0.03)
-            with self.lock:
-                data = self.frame
+            # with self.lock:
+            data = self.frame
             if not data:
                 continue
             yield (
