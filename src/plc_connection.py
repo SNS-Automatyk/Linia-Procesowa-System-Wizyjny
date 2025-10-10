@@ -251,7 +251,6 @@ class LiniaConnection:
             return False
         self.data_store.from_bytes(data)
         self.data_store._last_connected = datetime.now()
-        logger.info("Dane odczytane")
         return True
 
     async def write(self):
