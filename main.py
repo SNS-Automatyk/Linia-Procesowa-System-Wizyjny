@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/api")
 def root():
     return {
         "status": "success",
@@ -60,7 +60,7 @@ def root():
     }
 
 
-@app.put("/")
+@app.put("/api")
 async def root_put(data: dict):
     """
     Update the PLC data store with provided values.
@@ -76,7 +76,7 @@ async def root_put(data: dict):
     return {"status": "success"}
 
 
-@app.websocket("/")
+@app.websocket("/api")
 async def root_websocket(websocket: WebSocket):
     await websocket.accept()
     q = data_store.subscribe()
