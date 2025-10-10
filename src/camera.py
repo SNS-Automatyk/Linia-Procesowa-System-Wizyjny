@@ -31,7 +31,7 @@ class Camera:
             self.get_frame = lambda: cv.cvtColor(
                 self.cam.capture_array(), cv.COLOR_RGB2BGR
             )
-            self.release_camera = lambda: self.cam.stop()
+            self.release = lambda: self.cam.stop()
         else:
             self.backend = "opencv"
             self.cam = cv.VideoCapture(0)
@@ -41,7 +41,7 @@ class Camera:
             if not self.cam.isOpened():
                 raise RuntimeError("Cannot open camera")
             self.get_frame = lambda: self.cam.read()[1]
-            self.release_camera = lambda: self.cam.release()
+            self.release = lambda: self.cam.release()
 
         self.thread = threading.Thread(target=self._reader, daemon=True)
         self.thread.start()
@@ -76,4 +76,4 @@ class Camera:
 
     def stop(self):
         self.running = False
-        self.release_camera()
+        self.release()

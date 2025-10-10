@@ -1,5 +1,11 @@
 import argparse
 from src.wizja import wizja_live, wizja_still
+import asyncio
+
+import logging
+
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 def main():
@@ -28,9 +34,17 @@ def main():
         # input('Naciśnij Enter, aby zakończyć...')
     elif args.plc:
         print("Uruchamianie połączenia z PLC...")
-        from src.plc_connection import monitor_and_analyze
+        from src.plc_connection import (
+            monitor_and_analyze,
+            LiniaConnection,
+            LiniaDataStore,
+        )
 
-        monitor_and_analyze(args.ip)
+        data_store = LiniaDataStore()
+        linia = LiniaConnection(
+            ip_address=args.ip, data_store=data_store, rack=0, slot=1, port=102
+        )
+        asyncio.run(monitor_and_analyze(data_store, linia))
     else:
         print("No option selected. Use --help for more information.")
 

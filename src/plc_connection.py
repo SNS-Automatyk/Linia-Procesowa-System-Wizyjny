@@ -39,6 +39,7 @@ DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 # DB1.DBX12.0 - Status (Int) 2B
 
 logger = logging.getLogger("system_wizyjny")
+logger.setLevel(logging.DEBUG)
 
 
 @dataclass
@@ -201,13 +202,23 @@ class LiniaConnection:
         self.data_store = data_store
 
     def connect(self):
-        if self.client.get_connected():
-            return True
+        """
+        Ensure client is connected. Returns True when connected, False otherwise.
+        """
+        try:
+            if self.client.get_connected():
+                return True
+        except Exception as e:
+            # Defensive: some native failures may bubble up here
+            logger.error(f"Błąd podczas sprawdzania stanu połączenia PLC: {e}")
+            return False
+
         try:
             self.client.connect(self.ip_address, self.rack, self.slot, self.port)
         except Exception as e:
             logger.error(f"Błąd połączenia z PLC: {e}")
             return False
+
         self.data_store._last_connected = datetime.now()
         logger.info("Połączono z PLC.")
         return True
@@ -221,8 +232,17 @@ class LiniaConnection:
         """
         Reads the data from the PLC.
         """
-        if not self.client.get_connected():
-            self.connect()  # Ensure connection is established
+        # Establish connection if needed; avoid db_read on disconnected client
+        try:
+            connected = self.client.get_connected()
+        except Exception as e:
+            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
+            connected = False
+
+        if not connected:
+            if not self.connect():
+                # Not connected, skip read this cycle
+                return False
         try:
             # Read through status at DBX12.0 (2 bytes) => total 14 bytes
             data = self.client.db_read(DB_NUMBER, 0, 14)
@@ -231,6 +251,7 @@ class LiniaConnection:
             return False
         self.data_store.from_bytes(data)
         self.data_store._last_connected = datetime.now()
+        logger.info("Dane odczytane")
         return True
 
     async def write(self):
@@ -238,10 +259,22 @@ class LiniaConnection:
         Writes the result and finished back to the PLC.
         """
         new_bytes = self.data_store.to_bytes()
-        if not self.client.get_connected():
-            self.connect()  # Ensure connection is established
+        # Establish connection if needed; avoid db_write on disconnected client
+        try:
+            connected = self.client.get_connected()
+        except Exception as e:
+            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
+            connected = False
 
-        self.client.db_write(DB_NUMBER, 0, new_bytes)
+        if not connected:
+            if not self.connect():
+                return False
+
+        try:
+            self.client.db_write(DB_NUMBER, 0, new_bytes)
+        except Exception as e:
+            logger.error(f"Błąd zapisu danych do PLC: {e}")
+            return False
         self.data_store._last_connected = datetime.now()
         return True
 
@@ -258,7 +291,6 @@ def _should_detect_red_circle(result: dict) -> bool:
 
 
 async def monitor_and_analyze(data_store, linia):
-
     while True:
         try:
             if await linia.read() and data_store.analyze:

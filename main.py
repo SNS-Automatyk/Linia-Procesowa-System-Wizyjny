@@ -17,7 +17,7 @@ from src.camera import Camera
 data_store = LiniaDataStore()
 shutdown_event: asyncio.Event = asyncio.Event()
 
-ip_address = os.getenv("PLC_IP_ADDRESS", "127.0.0.1")
+ip_address = os.getenv("PLC_IP_ADDRESS", "192.168.0.1")
 rack = int(os.getenv("PLC_RACK", "0"))
 slot = int(os.getenv("PLC_SLOT", "1"))
 port = int(os.getenv("PLC_PORT", "102"))
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     # Configure in-memory logging once app starts
     handler = setup_in_memory_logging("system_wizyjny", level=logging.INFO, maxlen=100)
     app.state.log_handler = handler
-    # asyncio.create_task(monitor_and_analyze(data_store=data_store, linia=linia))
+    asyncio.create_task(monitor_and_analyze(data_store=data_store, linia=linia))
     try:
         yield
     finally:
