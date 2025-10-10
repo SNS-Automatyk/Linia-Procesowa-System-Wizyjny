@@ -20,9 +20,7 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
 3. Zainstaluj wymagane pakiety dla systemu wizyjnego:
     ```bash
     cd system-wizyjny
-    uv venv
-    uv activate
-    uv sync
+    pip install -r requirements.txt
     sudo apt-get install python3-opencv
     ```
 4. Zainstaluj natywną bibliotekę snap7 (`libsnap7.so`):
@@ -46,7 +44,7 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
     ```
 5. Skonfiguruj autostart dla systemu wizyjnego:
     ```bash
-    nano /etc/systemd/system/vision-system.service
+    nano /etc/systemd/system/linia.service
     ```
     Wklej poniższą konfigurację, dostosowując ścieżki do swojego środowiska:
     ```
@@ -55,9 +53,9 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
     After=network.target
 
     [Service]
-    User=pi
+    User=root
     WorkingDirectory=/home/pi/apps/system-wizyjny
-    ExecStart=/home/pi/apps/system-wizyjny/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
+    ExecStart=uvicorn main:app --host 0.0.0.0 --port 80
     Restart=always
     Environment=PYTHONUNBUFFERED=1
 
@@ -68,10 +66,10 @@ Ta instrukcja pomoże Ci skonfigurować środowisko produkcyjne na Raspberry Pi 
 6. Włącz i uruchom usługę:
     ```bash
     sudo systemctl daemon-reload
-    sudo systemctl enable vision-system.service
-    sudo systemctl start vision-system.service
+    sudo systemctl enable linia.service
+    sudo systemctl start linia.service
     ```
 7. Sprawdź status usługi:
     ```bash
-    sudo systemctl status vision-system.service
+    sudo systemctl status linia.service
     ```
