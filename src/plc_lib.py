@@ -324,9 +324,9 @@ class PLCConnection:
                 # Successful low-level TCP connect; proceed with snap7 handshake
                 pass
         except Exception as e:
-            logger.error(
-                f"Timeout/błąd podczas nawiązywania połączenia TCP z PLC {self.ip_address}:{self.port} w {self.connect_timeout:.1f}s: {e}"
-            )
+            # logger.error(
+            #     f"Timeout/błąd podczas nawiązywania połączenia TCP z PLC {self.ip_address}:{self.port} w {self.connect_timeout:.1f}s: {e}"
+            # )
             return False
 
         try:

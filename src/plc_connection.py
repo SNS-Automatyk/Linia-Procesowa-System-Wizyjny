@@ -44,7 +44,7 @@ class LiniaDataStore(PLCData):
     DataStore describing DB1 layout for the production line PLC.
     """
 
-    analyze = PLCBoolField(0, 0)
+    analyze = PLCBoolField(0, 0, settable=True)
     result = PLCBoolField(0, 1)
     finished = PLCBoolField(0, 2)
     error = PLCBoolField(0, 3)
@@ -86,7 +86,8 @@ def _should_detect_red_circle(result: dict) -> bool:
 async def monitor_and_analyze(data_store, linia):
     while True:
         try:
-            if await linia.read() and data_store.analyze:
+            await linia.read()
+            if data_store.analyze:
                 logger.info("Start analizy!")
                 try:
                     # Tutaj można dodać kod do analizy danych
@@ -102,7 +103,7 @@ async def monitor_and_analyze(data_store, linia):
                         data_store.result = 0
 
                     data_store.finished = 1
-                    data_store.analyze = 0
+                    data_store.set_data(analyze=0)
                     data_store.error = 0
                 except Exception as e:
                     logger.exception(f"Błąd podczas analizy: {e}")
