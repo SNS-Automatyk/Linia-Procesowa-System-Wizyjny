@@ -19,6 +19,7 @@ class Camera:
         self.lock = threading.Lock()
         self.frame: bytes | None = None
         self.running = True
+        self._released = False
         self.boundary = b"frame"
 
         if PICAMERA_AVAILABLE:
@@ -28,10 +29,10 @@ class Camera:
                 self.cam.create_preview_configuration(main={"size": (width, height)})
             )
             self.cam.start()
-            self.get_frame = lambda: cv.cvtColor(
+            self._get_frame = lambda: cv.cvtColor(
                 self.cam.capture_array(), cv.COLOR_RGB2BGR
             )
-            self.release = lambda: self.cam.stop()
+            self._release_backend = self.cam.stop
         else:
             self.backend = "opencv"
             self.cam = cv.VideoCapture(0)
@@ -40,16 +41,21 @@ class Camera:
             self.cam.set(cv.CAP_PROP_FPS, fps)
             if not self.cam.isOpened():
                 raise RuntimeError("Cannot open camera")
-            self.get_frame = lambda: self.cam.read()[1]
-            self.release = lambda: self.cam.release()
+            self._get_frame = lambda: self.cam.read()[1]
+            self._release_backend = self.cam.release
 
-        # Powoduje segmentation fault
-        # self.thread = threading.Thread(target=self._reader, daemon=True)
-        # self.thread.start()
+        # Background reader keeps latest frame ready for MJPEG streaming.
+        self.thread = threading.Thread(target=self._reader, daemon=True)
+        self.thread.start()
+
+    def get_frame(self):
+        with self.lock:
+            return self._get_frame()
 
     def _reader(self):
         while self.running:
-            frame = self.get_frame()
+            with self.lock:
+                frame = self._get_frame()
             if frame is None:
                 continue
             ok, jpg = cv.imencode(".jpg", frame, [int(cv.IMWRITE_JPEG_QUALITY), 70])
@@ -58,10 +64,20 @@ class Camera:
             # with self.lock:
             self.frame = jpg.tobytes()
 
+    def release(self):
+        print("Releasing camera...")
+        if self._released:
+            return
+        self.running = False
+        if self.thread.is_alive():
+            self.thread.join(timeout=1)
+        with self.lock:
+            self._release_backend()
+        self._released = True
+
     async def mjpeg_generator(self):
         while self.running:
             await asyncio.sleep(0.03)
-            # with self.lock:
             data = self.frame
             if not data:
                 continue
@@ -76,5 +92,4 @@ class Camera:
             )
 
     def stop(self):
-        self.running = False
         self.release()

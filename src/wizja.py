@@ -1,3 +1,4 @@
+import asyncio
 import os
 import cv2 as cv
 import datetime
@@ -45,38 +46,61 @@ def save_image_with_metadata(frame, result):
         json.dump(result, f)
 
 
-def wizja_still(contours=False, circles=True, save_image=True, camera=None):
+def wizja_still(
+    contours=False,
+    circles=True,
+    save_image=True,
+    camera=None,
+    stop_event: asyncio.Event | None = None,
+):
     if not camera:
         camera = Camera()
     stats = Stats()
     stats.inc("wizja_still_calls")
-    # Odrzucenie pierwszych kilku klatek (np. 2) dla stabilizacji kamery
-    for _ in range(2):
-        frame = camera.get_frame()
-    if frame is None:
-        print("Can't receive frame")
-        camera.release()
-        return
 
-    repetition = 0
+    cancelled = False
+    frame = None
     result = None
-    # Wykrywanie obiektów, aż do momentu, gdy zostaną wykryte kółka lub przekroczymy limit klatek
-    while (
-        repetition < STILL_REPETITION_LIMIT
-        and circles
-        and (not result or not result["circles"])
-    ):
-        frame = camera.get_frame()
+    try:
+        # Odrzucenie pierwszych kilku klatek (np. 2) dla stabilizacji kamery
+        for _ in range(2):
+            if stop_event and stop_event.is_set():
+                cancelled = True
+                break
+            frame = camera.get_frame()
+
+        if cancelled:
+            return None
+
         if frame is None:
             print("Can't receive frame")
-            camera.release()
-            return
-        repetition += 1
-        result = find_objects(frame, contours=contours, circles=circles, annotate=False)
+            return None
 
-    camera.release()
+        repetition = 0
+        # Wykrywanie obiektów, aż do momentu, gdy zostaną wykryte kółka lub przekroczymy limit klatek
+        while (
+            repetition < STILL_REPETITION_LIMIT
+            and circles
+            and (not result or not result.get("circles"))
+        ):
+            if stop_event and stop_event.is_set():
+                cancelled = True
+                break
+            frame = camera.get_frame()
+            if frame is None:
+                print("Can't receive frame")
+                return None
+            repetition += 1
+            result = find_objects(
+                frame, contours=contours, circles=circles, annotate=False
+            )
+    finally:
+        camera.release()
 
-    if save_image:
+    if cancelled:
+        return result
+
+    if save_image and frame is not None:
         save_image_with_metadata(frame, result)
 
     return result
