@@ -6,11 +6,18 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 
+_SRC_DIR = os.path.dirname(__file__)
+_PROJECT_DIR = os.path.dirname(_SRC_DIR)
+
+
 DIST = os.environ.get(
     "DIST_PATH",
-    os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "../panel-sterowania/dist"
-    ),
+    os.path.join(_PROJECT_DIR, "../panel-sterowania/dist"),
+)
+
+ANNOTATED_IMAGES_DIR = os.environ.get(
+    "ANNOTATED_IMAGES_PATH",
+    os.path.join(_PROJECT_DIR, "wizja_zdjecia", "annotated"),
 )
 
 _TOP_LEVEL_FILES: Iterable[tuple[str, str]] = (
@@ -40,4 +47,17 @@ def configure_static(app: FastAPI) -> None:
             f"/{filename}",
             StaticFiles(directory=DIST),
             name=route_name,
+        )
+
+    annotated_path = ANNOTATED_IMAGES_DIR
+    try:
+        os.makedirs(annotated_path, exist_ok=True)
+    except OSError:
+        annotated_path = None
+
+    if annotated_path and os.path.isdir(annotated_path):
+        app.mount(
+            "/annotated-images",
+            StaticFiles(directory=annotated_path),
+            name="annotated-images",
         )

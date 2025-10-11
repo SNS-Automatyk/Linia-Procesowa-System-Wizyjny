@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.lifespan import lifespan
+from src.routes.annotated_images import router as annotated_images_router
 from src.routes.api import router as api_router
 from src.routes.camera import router as camera_router
 from src.routes.logs import router as logs_router
@@ -20,6 +21,7 @@ app.add_middleware(
 app.include_router(api_router)
 app.include_router(logs_router)
 app.include_router(camera_router)
+app.include_router(annotated_images_router)
 configure_static(app)
 app.include_router(spa_router)
 
