@@ -1,12 +1,11 @@
 import snap7
 import asyncio
 import logging
-from dataclasses import dataclass
 from datetime import datetime
-import struct
 import socket
 
 from .wizja import wizja_still
+from .plc_lib import PLCData, PLCBoolField, PLCWordField, PLCRealField
 
 DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 
@@ -43,152 +42,33 @@ logger = logging.getLogger("system_wizyjny")
 logger.setLevel(logging.DEBUG)
 
 
-@dataclass
-class LiniaDataStore:
+class LiniaDataStore(PLCData):
     """
-    A class to store and manage the PLC data.
+    DataStore describing DB1 layout for the production line PLC.
     """
 
-    analyze: int = 0
-    result: int = 0
-    finished: int = 0
-    error: int = 0
+    analyze = PLCBoolField(0, 0)
+    result = PLCBoolField(0, 1)
+    finished = PLCBoolField(0, 2)
+    error = PLCBoolField(0, 3)
 
-    on_off: int = 0
-    red_button: int = 0
-    yellow_button: int = 0
+    system_wizyjny_on_off = PLCBoolField(0, 4, settable=True)
+    on_off = PLCBoolField(0, 5, settable=True)
+    red_button = PLCBoolField(0, 6, settable=True)
+    switch_status = PLCBoolField(0, 7)
 
-    system_wizyjny_on_off: int = 0
+    green_light = PLCBoolField(1, 0)
+    red_light = PLCBoolField(1, 1)
+    orange_light = PLCBoolField(1, 2)
+    white_light = PLCBoolField(1, 3)
+    yellow_button_light = PLCBoolField(1, 4)
+    yellow_button = PLCBoolField(1, 5, settable=True)
 
-    switch_status: int = 0
-    green_light: int = 0
-    red_light: int = 0
-    orange_light: int = 0
-    yellow_button_light: int = 0
-    white_light: int = 0
+    good_count = PLCWordField(2)
+    bad_count = PLCWordField(4)
 
-    good_count: int = 0
-    bad_count: int = 0
-
-    status: int = 0
-
-    speed: float = 0  # -100 - 100
-
-    _last_connected: datetime = None
-    _subscribers: list = None
-
-    @property
-    def is_connected(self) -> bool:
-        if self._last_connected is None:
-            return False
-        return (datetime.now() - self._last_connected).total_seconds() <= 2
-
-    def __post_init__(self):
-        self._subscribers = []
-
-    def set_data(self, **kwargs):
-        for k, v in kwargs.items():
-            if k not in (
-                "on_off",
-                "red_button",
-                "yellow_button",
-                "speed",
-                "system_wizyjny_on_off",
-            ):
-                continue
-            if hasattr(self, k):
-                setattr(self, k, v)
-        self.notify_subscribers()
-
-    def dict(self):
-        exclude_fields = []
-        extra_fields = ["is_connected"]
-        return {
-            k: v
-            for (k, v) in self.__dict__.items()
-            if (
-                (v is not None)
-                and (not k.startswith("_"))
-                and (k not in exclude_fields)
-            )
-        } | {k: getattr(self, k) for k in extra_fields}
-
-    def from_bytes(self, from_bytes: bytes):
-        self.analyze = from_bytes[0] & 0x01
-        self.result = (from_bytes[0] >> 1) & 0x01
-        self.finished = (from_bytes[0] >> 2) & 0x01
-        self.error = (from_bytes[0] >> 3) & 0x01
-        self.system_wizyjny_on_off = (from_bytes[0] >> 4) & 0x01
-        self.on_off = (from_bytes[0] >> 5) & 0x01
-        self.red_button = (from_bytes[0] >> 6) & 0x01
-        self.switch_status = (from_bytes[0] >> 7) & 0x01
-
-        self.green_light = (from_bytes[1] >> 0) & 0x01
-        self.red_light = (from_bytes[1] >> 1) & 0x01
-        self.orange_light = (from_bytes[1] >> 2) & 0x01
-        self.white_light = (from_bytes[1] >> 3) & 0x01
-        self.yellow_button_light = (from_bytes[1] >> 4) & 0x01
-        self.yellow_button = (from_bytes[1] >> 5) & 0x01
-
-        self.good_count = int.from_bytes(from_bytes[2:4], byteorder="big")
-        self.bad_count = int.from_bytes(from_bytes[4:6], byteorder="big")
-
-        # DB1.DBX8.0 - predkosc (Real) 4B (IEEE-754 float, big-endian)
-        if len(from_bytes) >= 12:
-            try:
-                self.speed = struct.unpack(">f", from_bytes[8:12])[0]
-            except struct.error:
-                pass
-
-        if len(from_bytes) >= 14:
-            self.status = int.from_bytes(from_bytes[12:14], byteorder="big")
-
-        self.notify_subscribers()
-
-    def to_bytes(self):
-        # First two bytes: bitfields matching from_bytes mapping
-        header = bytearray(
-            [
-                (self.analyze << 0)
-                | (self.result << 1)
-                | (self.finished << 2)
-                | (self.error << 3)
-                | (self.system_wizyjny_on_off << 4)
-                | (self.on_off << 5)
-                | (self.red_button << 6)
-                | (self.switch_status << 7),
-                (self.green_light << 0)
-                | (self.red_light << 1)
-                | (self.orange_light << 2)
-                | (self.white_light << 3)
-                | (self.yellow_button_light << 4)
-                | (self.yellow_button << 5),
-            ]
-        )
-
-        payload = bytearray()
-        payload += self.good_count.to_bytes(2, byteorder="big")
-        payload += self.bad_count.to_bytes(2, byteorder="big")
-        payload += bytearray(2)  # reserved bytes at offsets 6-7
-        payload += struct.pack(">f", float(self.speed))  # speed at 8-11 as REAL
-        payload += self.status.to_bytes(2, byteorder="big")
-        return header + payload
-
-    def subscribe(self) -> asyncio.Queue:
-        q: asyncio.Queue = asyncio.Queue(maxsize=100)
-        self._subscribers.append(q)
-        return q
-
-    def unsubscribe(self, q: asyncio.Queue):
-        if q in self._subscribers:
-            self._subscribers.remove(q)
-
-    def notify_subscribers(self):
-        for q in self._subscribers:
-            try:
-                q.put_nowait(self)
-            except asyncio.QueueFull:
-                pass  # If the queue is full, we skip notifying this subscriber
+    speed = PLCRealField(8, settable=True)
+    status = PLCWordField(12)
 
 
 class LiniaConnection:
