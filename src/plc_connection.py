@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 import struct
+import socket
 
 from .wizja import wizja_still
 
@@ -97,10 +98,7 @@ class LiniaDataStore:
                 continue
             if hasattr(self, k):
                 setattr(self, k, v)
-                # test
-                # if k == "on_off" and v == 1:
-                #     self.green_light = 1 - self.green_light
-        self.notify_subsribers()
+        self.notify_subscribers()
 
     def dict(self):
         exclude_fields = []
@@ -145,7 +143,7 @@ class LiniaDataStore:
         if len(from_bytes) >= 14:
             self.status = int.from_bytes(from_bytes[12:14], byteorder="big")
 
-        self.notify_subsribers()
+        self.notify_subscribers()
 
     def to_bytes(self):
         # First two bytes: bitfields matching from_bytes mapping
@@ -185,7 +183,7 @@ class LiniaDataStore:
         if q in self._subscribers:
             self._subscribers.remove(q)
 
-    def notify_subsribers(self):
+    def notify_subscribers(self):
         for q in self._subscribers:
             try:
                 q.put_nowait(self)
@@ -198,17 +196,35 @@ class LiniaConnection:
     A class to talk with linia S7 PLC.
     """
 
-    def __init__(self, ip_address, data_store, rack=0, slot=1, port=102):
+    def __init__(
+        self,
+        ip_address,
+        data_store,
+        rack=0,
+        slot=1,
+        port=102,
+        connect_timeout: float = 1.5,
+    ):
         self.ip_address = ip_address
         self.rack = rack
         self.slot = slot
         self.port = port
+        self.connect_timeout = float(connect_timeout)
         self.client = snap7.client.Client()
         self.data_store = data_store
+
+    def notify_subscribers(self):
+        """Forward notifications to the underlying data store subscribers."""
+        try:
+            self.data_store.notify_subscribers()
+        except Exception:
+            # Keep defensive; notification should never block connection flow
+            pass
 
     def connect(self):
         """
         Ensure client is connected. Returns True when connected, False otherwise.
+        Uses a preflight TCP connect with timeout to avoid indefinite blocking.
         """
         try:
             if self.client.get_connected():
@@ -218,6 +234,19 @@ class LiniaConnection:
             logger.error(f"Błąd podczas sprawdzania stanu połączenia PLC: {e}")
             return False
 
+        # Preflight TCP connection with timeout to avoid hanging in snap7.connect
+        try:
+            with socket.create_connection(
+                (self.ip_address, self.port), timeout=self.connect_timeout
+            ) as s:
+                # Successful low-level TCP connect; proceed with snap7 handshake
+                pass
+        except Exception as e:
+            logger.error(
+                f"Timeout/błąd podczas nawiązywania połączenia TCP z PLC {self.ip_address}:{self.port} w {self.connect_timeout:.1f}s: {e}"
+            )
+            return False
+
         try:
             self.client.connect(self.ip_address, self.rack, self.slot, self.port)
         except Exception as e:
@@ -225,6 +254,7 @@ class LiniaConnection:
             return False
 
         self.data_store._last_connected = datetime.now()
+        self.notify_subscribers()
         logger.info("Połączono z PLC.")
         return True
 
@@ -249,8 +279,11 @@ class LiniaConnection:
         except Exception as e:
             logger.error(f"Błąd odczytu danych z PLC: {e}")
             return False
+
         self.data_store.from_bytes(data)
         self.data_store._last_connected = datetime.now()
+        self.notify_subscribers()
+
         return True
 
     async def write(self):
@@ -264,6 +297,7 @@ class LiniaConnection:
         except Exception as e:
             logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
             connected = False
+            return False
 
         if not connected:
             if not self.connect():
@@ -274,7 +308,10 @@ class LiniaConnection:
         except Exception as e:
             logger.error(f"Błąd zapisu danych do PLC: {e}")
             return False
+
         self.data_store._last_connected = datetime.now()
+        self.notify_subscribers()
+
         return True
 
 
