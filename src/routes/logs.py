@@ -73,6 +73,21 @@ async def logs_stream(websocket: WebSocket):
     stop_task: Optional[asyncio.Task] = None
 
     try:
+        # Send the current log snapshot immediately so the client starts with history.
+        existing_logs = handler.get_logs()
+        if existing_logs:
+            for entry in existing_logs:
+                try:
+                    await websocket.send_json(entry)
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 - need concrete info for debugging
+                    logger.error(
+                        "Failed to deliver initial logs via WebSocket: %s", exc
+                    )
+                    await websocket.close(code=1011)
+                    return
+
         recv_task = asyncio.create_task(recv_until_disconnect())
         queue_task = asyncio.create_task(queue.get())
         stop_task = asyncio.create_task(shutdown_event.wait())
