@@ -62,6 +62,11 @@ python cli.py --plc --ip 192.168.0.1
 ```
 gdzie `--ip` jest adresem IP PLC.
 
+Aby uruchomić testowy serwer udający PLC snap7 (do testów bez fizycznego PLC), użyj:
+```
+python -m snap7.server --port 102
+```
+
 ### FastAPI
 Aby uruchomić deweloperski serwer API FastAPI, użyj następującego polecenia:
 ```

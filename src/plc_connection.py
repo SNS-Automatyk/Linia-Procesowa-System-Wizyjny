@@ -1,11 +1,8 @@
-import snap7
 import asyncio
 import logging
-from datetime import datetime
-import socket
 
 from .wizja import wizja_still
-from .plc_lib import PLCData, PLCBoolField, PLCWordField, PLCRealField
+from .plc_lib import PLCData, PLCBoolField, PLCWordField, PLCRealField, PLCConnection
 
 DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 
@@ -71,128 +68,8 @@ class LiniaDataStore(PLCData):
     status = PLCWordField(12)
 
 
-class LiniaConnection:
-    """
-    A class to talk with linia S7 PLC.
-    """
-
-    def __init__(
-        self,
-        ip_address,
-        data_store,
-        rack=0,
-        slot=1,
-        port=102,
-        connect_timeout: float = 1.5,
-    ):
-        self.ip_address = ip_address
-        self.rack = rack
-        self.slot = slot
-        self.port = port
-        self.connect_timeout = float(connect_timeout)
-        self.client = snap7.client.Client()
-        self.data_store = data_store
-
-    def notify_subscribers(self):
-        """Forward notifications to the underlying data store subscribers."""
-        try:
-            self.data_store.notify_subscribers()
-        except Exception:
-            # Keep defensive; notification should never block connection flow
-            pass
-
-    def connect(self):
-        """
-        Ensure client is connected. Returns True when connected, False otherwise.
-        Uses a preflight TCP connect with timeout to avoid indefinite blocking.
-        """
-        try:
-            if self.client.get_connected():
-                return True
-        except Exception as e:
-            # Defensive: some native failures may bubble up here
-            logger.error(f"Błąd podczas sprawdzania stanu połączenia PLC: {e}")
-            return False
-
-        # Preflight TCP connection with timeout to avoid hanging in snap7.connect
-        try:
-            with socket.create_connection(
-                (self.ip_address, self.port), timeout=self.connect_timeout
-            ) as s:
-                # Successful low-level TCP connect; proceed with snap7 handshake
-                pass
-        except Exception as e:
-            logger.error(
-                f"Timeout/błąd podczas nawiązywania połączenia TCP z PLC {self.ip_address}:{self.port} w {self.connect_timeout:.1f}s: {e}"
-            )
-            return False
-
-        try:
-            self.client.connect(self.ip_address, self.rack, self.slot, self.port)
-        except Exception as e:
-            logger.error(f"Błąd połączenia z PLC: {e}")
-            return False
-
-        self.data_store._last_connected = datetime.now()
-        self.notify_subscribers()
-        logger.info("Połączono z PLC.")
-        return True
-
-    async def read(self):
-        """
-        Reads the data from the PLC.
-        """
-        # Establish connection if needed; avoid db_read on disconnected client
-        try:
-            connected = self.client.get_connected()
-        except Exception as e:
-            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
-            connected = False
-
-        if not connected:
-            if not self.connect():
-                # Not connected, skip read this cycle
-                return False
-        try:
-            # Read through status at DBX12.0 (2 bytes) => total 14 bytes
-            data = self.client.db_read(DB_NUMBER, 0, 14)
-        except Exception as e:
-            logger.error(f"Błąd odczytu danych z PLC: {e}")
-            return False
-
-        self.data_store.from_bytes(data)
-        self.data_store._last_connected = datetime.now()
-        self.notify_subscribers()
-
-        return True
-
-    async def write(self):
-        """
-        Writes the result and finished back to the PLC.
-        """
-        new_bytes = self.data_store.to_bytes()
-        # Establish connection if needed; avoid db_write on disconnected client
-        try:
-            connected = self.client.get_connected()
-        except Exception as e:
-            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
-            connected = False
-            return False
-
-        if not connected:
-            if not self.connect():
-                return False
-
-        try:
-            self.client.db_write(DB_NUMBER, 0, new_bytes)
-        except Exception as e:
-            logger.error(f"Błąd zapisu danych do PLC: {e}")
-            return False
-
-        self.data_store._last_connected = datetime.now()
-        self.notify_subscribers()
-
-        return True
+class LiniaConnection(PLCConnection):
+    pass
 
 
 def _should_detect_red_circle(result: dict) -> bool:

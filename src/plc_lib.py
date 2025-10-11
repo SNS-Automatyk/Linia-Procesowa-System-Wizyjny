@@ -1,8 +1,15 @@
 import asyncio
+import snap7
+import logging
 from collections import OrderedDict
 from datetime import datetime
 import struct
+from datetime import datetime
+import socket
 from typing import Dict, List, Optional
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("system_wizyjny")
 
 
 class PLCField:
@@ -174,17 +181,41 @@ class PLCData(metaclass=PLCDataMeta):
             name: field.coerce(field.default) for name, field in self._fields.items()
         }
         self._subscribers: List[asyncio.Queue] = []
-        self._last_connected: Optional[datetime] = None
 
         for key, value in initial_values.items():
             if key in self._fields:
                 setattr(self, key, value)
 
+    IS_CONNECTED_TIMEOUT = 2  # seconds
+
+    _last_connected: Optional[datetime] = None
+
     @property
     def is_connected(self) -> bool:
         if self._last_connected is None:
             return False
-        return (datetime.now() - self._last_connected).total_seconds() <= 2
+        return (
+            datetime.now() - self._last_connected
+        ).total_seconds() <= self.IS_CONNECTED_TIMEOUT
+
+    def last_connected_setter(self, value):
+        self.old_is_connected = self.is_connected
+        self._last_connected = value
+        if self.old_is_connected != self.is_connected:
+            self.notify_subscribers()
+
+        # check connection status after timeout
+        self._last_connected_timeout = asyncio.get_event_loop().call_later(
+            self.IS_CONNECTED_TIMEOUT, self._on_connection_timeout
+        )
+
+    last_connected = property(lambda self: self._last_connected, last_connected_setter)
+
+    def _on_connection_timeout(self):
+        print("Connection timeout reached")
+        if self.old_is_connected != self.is_connected:
+            self.notify_subscribers()
+            self.old_is_connected = self.is_connected
 
     @classmethod
     def buffer_size(cls) -> int:
@@ -197,6 +228,8 @@ class PLCData(metaclass=PLCDataMeta):
         for key, value in kwargs.items():
             field = self._fields.get(key)
             if field is None or not field.settable:
+                continue
+            if getattr(self, key) == field.coerce(value):
                 continue
             setattr(self, key, value)
             processed = True
@@ -236,3 +269,126 @@ class PLCData(metaclass=PLCDataMeta):
                 q.put_nowait(self)
             except asyncio.QueueFull:
                 pass
+
+
+class PLCConnection:
+    """
+    A class to talk with linia S7 PLC.
+    """
+
+    def __init__(
+        self,
+        ip_address,
+        data_store,
+        db_numer=1,
+        rack=0,
+        slot=1,
+        port=102,
+        connect_timeout: float = 1.5,
+    ):
+        self.ip_address = ip_address
+        self.db_numer = db_numer
+        self.rack = rack
+        self.slot = slot
+        self.port = port
+        self.connect_timeout = float(connect_timeout)
+        self.client = snap7.client.Client()
+        self.data_store = data_store
+
+    def notify_subscribers(self):
+        """Forward notifications to the underlying data store subscribers."""
+        try:
+            self.data_store.notify_subscribers()
+        except Exception:
+            # Keep defensive; notification should never block connection flow
+            pass
+
+    def connect(self):
+        """
+        Ensure client is connected. Returns True when connected, False otherwise.
+        Uses a preflight TCP connect with timeout to avoid indefinite blocking.
+        """
+        try:
+            if self.client.get_connected():
+                return True
+        except Exception as e:
+            # Defensive: some native failures may bubble up here
+            logger.error(f"Błąd podczas sprawdzania stanu połączenia PLC: {e}")
+            return False
+
+        # Preflight TCP connection with timeout to avoid hanging in snap7.connect
+        try:
+            with socket.create_connection(
+                (self.ip_address, self.port), timeout=self.connect_timeout
+            ) as s:
+                # Successful low-level TCP connect; proceed with snap7 handshake
+                pass
+        except Exception as e:
+            logger.error(
+                f"Timeout/błąd podczas nawiązywania połączenia TCP z PLC {self.ip_address}:{self.port} w {self.connect_timeout:.1f}s: {e}"
+            )
+            return False
+
+        try:
+            self.client.connect(self.ip_address, self.rack, self.slot, self.port)
+        except Exception as e:
+            logger.error(f"Błąd połączenia z PLC: {e}")
+            return False
+
+        self.data_store.last_connected = datetime.now()
+        logger.info("Połączono z PLC.")
+        return True
+
+    async def read(self):
+        """
+        Reads the data from the PLC.
+        """
+        # Establish connection if needed; avoid db_read on disconnected client
+        try:
+            connected = self.client.get_connected()
+        except Exception as e:
+            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
+            connected = False
+
+        if not connected:
+            if not self.connect():
+                # Not connected, skip read this cycle
+                return False
+        try:
+            # Read through status at DBX12.0 (2 bytes) => total 14 bytes
+            data = self.client.db_read(self.db_numer, 0, 14)
+        except Exception as e:
+            logger.error(f"Błąd odczytu danych z PLC: {e}")
+            return False
+
+        self.data_store.from_bytes(data)
+        self.data_store.last_connected = datetime.now()
+
+        return True
+
+    async def write(self):
+        """
+        Writes the result and finished back to the PLC.
+        """
+        new_bytes = self.data_store.to_bytes()
+        # Establish connection if needed; avoid db_write on disconnected client
+        try:
+            connected = self.client.get_connected()
+        except Exception as e:
+            logger.error(f"Błąd podczas sprawdzania połączenia PLC: {e}")
+            connected = False
+            return False
+
+        if not connected:
+            if not self.connect():
+                return False
+
+        try:
+            self.client.db_write(self.db_numer, 0, new_bytes)
+        except Exception as e:
+            logger.error(f"Błąd zapisu danych do PLC: {e}")
+            return False
+
+        self.data_store.last_connected = datetime.now()
+
+        return True
