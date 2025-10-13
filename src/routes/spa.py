@@ -10,5 +10,5 @@ router = APIRouter()
 
 
 @router.get("/{full_path:path}")
-def spa(_full_path: str):
+def spa(full_path: str):
     return FileResponse(os.path.join(DIST, "index.html"))
