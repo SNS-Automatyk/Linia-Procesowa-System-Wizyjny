@@ -59,7 +59,9 @@ def wizja_still(
     camera=None,
     stop_event=None,
 ):
+
     camera_initialized_here = False
+
     if camera is None:
         camera_initialized_here = True
         camera = Camera()
