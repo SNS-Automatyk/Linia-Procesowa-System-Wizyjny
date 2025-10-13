@@ -212,7 +212,6 @@ class PLCData(metaclass=PLCDataMeta):
     last_connected = property(lambda self: self._last_connected, last_connected_setter)
 
     def _on_connection_timeout(self):
-        print("Connection timeout reached")
         if self.old_is_connected != self.is_connected:
             self.notify_subscribers()
             self.old_is_connected = self.is_connected
