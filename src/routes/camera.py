@@ -15,4 +15,4 @@ async def camera_stream():
             media_type="multipart/x-mixed-replace; boundary=frame",
         )
     else:
-        return 
+        return

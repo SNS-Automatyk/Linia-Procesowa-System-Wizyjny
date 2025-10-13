@@ -59,7 +59,7 @@ def wizja_still(
     camera=None,
     stop_event=None,
 ):
-    
+
     if camera is None:
         camera = Camera()
     stats = Stats()
