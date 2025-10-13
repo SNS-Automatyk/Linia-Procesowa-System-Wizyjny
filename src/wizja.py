@@ -3,6 +3,12 @@ import os
 import cv2 as cv
 import datetime
 import json
+import logging
+
+
+logger = logging.getLogger("system_wizyjny")
+logger.setLevel(logging.DEBUG)
+
 
 from .stats import Stats
 from .contours import detect_contours
@@ -53,7 +59,8 @@ def wizja_still(
     camera=None,
     stop_event=None,
 ):
-    if not camera:
+    
+    if camera is None:
         camera = Camera()
     stats = Stats()
     stats.inc("wizja_still_calls")
@@ -62,20 +69,6 @@ def wizja_still(
     frame = None
     result = None
     try:
-        # Odrzucenie pierwszych kilku klatek (np. 2) dla stabilizacji kamery
-        for _ in range(2):
-            if stop_event and stop_event.is_set():
-                cancelled = True
-                break
-            frame = camera.get_frame()
-
-        if cancelled:
-            return None
-
-        if frame is None:
-            print("Can't receive frame")
-            return None
-
         repetition = 0
         # Wykrywanie obiektów, aż do momentu, gdy zostaną wykryte kółka lub przekroczymy limit klatek
         while (
@@ -89,6 +82,7 @@ def wizja_still(
             frame = camera.get_frame()
             if frame is None:
                 print("Can't receive frame")
+                logger.error("Can't receive frame")
                 return None
             repetition += 1
             result = find_objects(

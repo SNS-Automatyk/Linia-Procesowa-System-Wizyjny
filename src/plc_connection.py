@@ -83,7 +83,7 @@ def _should_detect_red_circle(result: dict) -> bool:
         return False
 
 
-async def monitor_and_analyze(data_store, linia):
+async def monitor_and_analyze(data_store, linia, camera):
     while True:
         try:
             await linia.read()
@@ -91,7 +91,7 @@ async def monitor_and_analyze(data_store, linia):
                 logger.info("Start analizy!")
                 try:
                     # Tutaj można dodać kod do analizy danych
-                    wizja_result = wizja_still()
+                    wizja_result = wizja_still(camera=camera)
                     logger.info(f"Wynik analizy: {wizja_result}")
                     if _should_detect_red_circle(wizja_result):
                         logger.info("Wykryto czerwone koło, zapisuję wynik jako 1...")
@@ -102,12 +102,13 @@ async def monitor_and_analyze(data_store, linia):
                         )
                         data_store.result = 0
 
-                    data_store.finished = 1
-                    data_store.set_data(analyze=0)
                     data_store.error = 0
+                    data_store.finished = 1
                 except Exception as e:
                     logger.exception(f"Błąd podczas analizy: {e}")
                     data_store.error = 1
+
+                data_store.set_data(analyze=0)
 
                 await linia.write()
                 logger.info("Analiza zakończona, wynik zapisany.")

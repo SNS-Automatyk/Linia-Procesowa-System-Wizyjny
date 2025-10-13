@@ -27,11 +27,15 @@ linia = LiniaConnection(
     port=port,
 )
 
+# Upewnij się, że żadna inna aplikacja nie używa kamery
+os.system("sudo fuser -k /dev/video0")
+
 try:
     camera = Camera()
-except:
+except Exception as e:
     camera = None
     logger.error("Błąd inicjacji kamery")
+    print(e)
 
 __all__ = [
     "camera",
