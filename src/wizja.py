@@ -51,7 +51,7 @@ def wizja_still(
     circles=True,
     save_image=True,
     camera=None,
-    stop_event: asyncio.Event | None = None,
+    stop_event=None,
 ):
     if not camera:
         camera = Camera()
