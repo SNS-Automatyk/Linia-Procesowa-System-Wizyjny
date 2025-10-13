@@ -67,6 +67,8 @@ class LiniaDataStore(PLCData):
     speed = PLCRealField(8, settable=True)
     status = PLCWordField(12)
 
+    klocek_w_podajniku = PLCBoolField(14, 0)
+
 
 class LiniaConnection(PLCConnection):
     pass

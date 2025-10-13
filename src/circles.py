@@ -45,7 +45,7 @@ def detect_circles(
             a, b, r = int(pt[0]), int(pt[1]), int(pt[2])
             color, average = get_circle_color_info(a, b, r, frame)
             results_circles.append(
-                {"x": a, "y": b, "r": r, "color": color, "hsv": average.tolist()}
+                {"x": a, "y": b, "r": r, "color": color, "hsv": average.tolist() }
             )
 
     return results_circles

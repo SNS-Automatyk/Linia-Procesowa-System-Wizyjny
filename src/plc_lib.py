@@ -351,6 +351,7 @@ class PLCConnection:
 
         if not connected:
             if not self.connect():
+                self.connect()
                 # Not connected, skip read this cycle
                 return False
         try:

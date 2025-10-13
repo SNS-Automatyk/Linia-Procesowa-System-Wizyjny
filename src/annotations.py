@@ -72,7 +72,7 @@ def annotate_frame(frame, data):
         cv.circle(frame, (a, b), 1, (0, 0, 255), 3)
         cv.putText(
             frame,
-            f"{color} HSV:{[int(round(x)) for x in average]}",
+            f"{color}, r: {r}, HSV:{[int(round(x)) for x in average]}",
             (a, b),
             1,
             1,

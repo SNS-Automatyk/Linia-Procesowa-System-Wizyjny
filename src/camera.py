@@ -49,6 +49,8 @@ class Camera:
         self.thread.start()
 
     def get_frame(self):
+        if self._released:
+            raise RuntimeError("Camera has been released")
         with self.lock:
             return self._get_frame()
 

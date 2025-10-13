@@ -59,8 +59,9 @@ def wizja_still(
     camera=None,
     stop_event=None,
 ):
-    
+    camera_initialized_here = False
     if camera is None:
+        camera_initialized_here = True
         camera = Camera()
     stats = Stats()
     stats.inc("wizja_still_calls")
@@ -89,7 +90,8 @@ def wizja_still(
                 frame, contours=contours, circles=circles, annotate=False
             )
     finally:
-        camera.release()
+        if camera_initialized_here:
+            camera.release()
 
     if cancelled:
         return result
