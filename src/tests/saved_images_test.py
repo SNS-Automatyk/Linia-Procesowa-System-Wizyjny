@@ -4,19 +4,19 @@ funkcja detect_circles wykrywa dokładnie 1 koło.
 
 Użycie:
   - Przez zmienną środowiskową IMAGES_PATH:
-	  IMAGES_PATH=/ścieżka/do/obrazów python -m src.tests.saved_images_test
+          IMAGES_PATH=/ścieżka/do/obrazów python -m src.tests.saved_images_test
 
   - Lub parametrem CLI:
-	  python -m src.tests.saved_images_test --images /ścieżka/do/obrazów
+          python -m src.tests.saved_images_test --images /ścieżka/do/obrazów
 
 Opcje:
   --images, -i   Ścieżka do folderu z obrazami (rekurencyjnie)
   --ext, -e      Rozszerzenia obrazów (lista po przecinku). Domyślnie: jpg,jpeg,png,bmp
   --verbose, -v  Wypisz wynik dla każdego pliku
-	--search       Uruchom przeszukiwanie siatką (grid search) dla param1/param2
-	--p1, --param1 Zakres i krok dla param1 w formacie min:max:step (domyślnie 80:240:20)
-	--p2, --param2 Zakres i krok dla param2 w formacie min:max:step (domyślnie 20:80:5)
-	--topk         Ile najlepszych kombinacji wypisać (domyślnie 5)
+        --search       Uruchom przeszukiwanie siatką (grid search) dla param1/param2
+        --p1, --param1 Zakres i krok dla param1 w formacie min:max:step (domyślnie 80:240:20)
+        --p2, --param2 Zakres i krok dla param2 w formacie min:max:step (domyślnie 20:80:5)
+        --topk         Ile najlepszych kombinacji wypisać (domyślnie 5)
 
 Kryterium poprawności: dokładnie 1 wykryte koło.
 """
