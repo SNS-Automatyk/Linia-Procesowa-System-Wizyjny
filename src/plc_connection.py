@@ -69,6 +69,8 @@ class LiniaDataStore(PLCData):
 
     klocek_w_podajniku = PLCBoolField(14, 0)
 
+    tryb_auto = PLCBoolField(14, 1, settable=True)
+
 
 class LiniaConnection(PLCConnection):
     pass
