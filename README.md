@@ -91,6 +91,82 @@ fastapi dev main.py
 ## Konfiguracja
 Plik konfiguracyjny `src/config.py` zawiera parametry dla systemu wizyjnego, takie jak wymiary klatki, marginesy i limity dla powtórzeń wykrywania obiektów. Możesz dostosować te parametry, aby dopasować je do swojego konkretnego przypadku użycia.
 
+## Ewaluacja i strojenie wykrywania kół (HoughCircles)
+
+W repozytorium znajduje się skrypt, który pozwala przetestować i wystroić parametry detektora kół na zestawie zapisanych obrazów.
+
+Plik: `src/tests/saved_images_test.py`
+
+Co robi skrypt:
+- wczytuje obrazy z podanego katalogu (rekurencyjnie),
+- uruchamia `detect_circles` na każdym obrazie,
+- sprawdza, czy wykryto dokładnie 1 koło (kryterium poprawności),
+- opcjonalnie wykonuje przeszukiwanie siatką (grid search) dla pary parametrów `param1` i `param2` funkcji `cv.HoughCircles`,
+- pokazuje pasek postępu (wykorzystuje `rich` – jest w requirements), z lekkim fallbackiem gdy `rich` nie jest dostępny,
+- opcjonalnie zapisuje podglądy (np. krawędzi) do katalogu `output_images`.
+
+Uruchomienie (dwa sposoby wskazania katalogu z obrazami):
+- przez zmienną środowiskową:
+    ```bash
+    IMAGES_PATH=../wizja_zdjecia/raw python -m src.tests.saved_images_test
+    ```
+- albo parametrem `--images`:
+    ```bash
+    python -m src.tests.saved_images_test --images ../wizja_zdjecia/raw
+    ```
+
+Jeśli na Twoim systemie komenda `python` nie istnieje (macOS często używa `python3`), użyj:
+```bash
+python3 -m src.tests.saved_images_test --images ../wizja_zdjecia/raw
+```
+
+### Tryb przeszukiwania siatką (grid search)
+Skrypt może automatycznie przetestować wiele kombinacji `param1` (próg Canny) i `param2` (próg akumulatora) i wyświetlić najlepsze ustawienia.
+
+Szybka siatka (krótki czas wykonywania):
+```bash
+python -m src.tests.saved_images_test \
+    --images ../wizja_zdjecia/raw \
+    --search \
+    --p1 80:140:30 \
+    --p2 25:55:15 \
+    --topk 3
+```
+
+Domyślne zakresy (gęstsze):
+- `--p1 80:240:20`
+- `--p2 20:80:5`
+
+Znaczenie parametrów:
+- `param1` – górny próg dla Canny (wewnętrznie używane są progi `param1/2` i `param1`),
+- `param2` – próg akumulatora dla środków okręgów (ile „głosów” potrzeba, by uznać środek koła).
+
+Po zakończeniu zobaczysz zestawienie najlepszych kombinacji, np.:
+```
+== Najlepsza kombinacja ==
+param1=120, param2=35 -> OK=45/50 (zero=4, >1=1)
+
+Top kombinacje:
+ 1. p1=120, p2=35 -> OK=45/50 (90.0%), zero=4, >1=1
+ 2. p1=100, p2=35 -> OK=44/50 (88.0%), zero=5, >1=1
+ 3. p1=140, p2=30 -> OK=43/50 (86.0%), zero=6, >1=1
+```
+
+Możesz następnie użyć wskazanych parametrów przekazując je do `detect_circles` przez argument `params={"param1": X, "param2": Y}` lub w miejscu wywołania funkcji w Twoim pipeline.
+
+### Zapis podglądów do plików
+Aby przy debugowaniu podejrzeć krawędzie (lub adnotacje), uruchom z `--save`:
+```bash
+python -m src.tests.saved_images_test --images ../wizja_zdjecia/raw --save
+```
+Przetworzone obrazy trafią do `output_images/` z zachowaniem struktury katalogów względem źródłowego folderu.
+
+Wskazówki praktyczne:
+- Zawężaj `minRadius/maxRadius` w `src/config.py` pod swoje obiekty – to ułatwia dobre dopasowanie Hougha.
+- Przy zbyt wielu fałszywych detekcjach podnoś `param2` i/lub `param1`.
+- Gdy gubisz słabsze koła – obniż `param2` i/lub `param1`.
+- `dp` (w `HoughCircles`) większe niż 1 przyspiesza kosztem precyzji; przy większym `dp` zwykle trzeba nieco obniżyć `param2`.
+
 ## Konfiguracja produkcyjna
 Instrukcje dotyczące konfiguracji produkcyjnej znajdują się w pliku [`production.md`](production.md).
 

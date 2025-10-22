@@ -7,18 +7,46 @@ from .config import CIRCLE_MIN_RADIUS, CIRCLE_MAX_RADIUS
 
 
 def detect_circles(
-    frame, FRAME_LEFT_MARGIN, FRAME_TOP_MARGIN, FRAME_WIDTH, FRAME_HEIGHT
+    frame, FRAME_LEFT_MARGIN, FRAME_TOP_MARGIN, FRAME_WIDTH, FRAME_HEIGHT, params={}
 ):
     results_circles = []
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
     gray = cv.medianBlur(gray, 5)
+    param1 = params.get("param1", 15)
+    param2 = params.get("param2", 35)
     detected_circles = cv.HoughCircles(
         gray,
         cv.HOUGH_GRADIENT,
-        1,
-        40,
-        param1=200,
-        param2=45,
+        dp=1,  # odwrotność skali akumulatora względem obrazu. 1 = ta sama rozdzielczość; >1 zmniejsza rozdzielczość akumulatora (szybciej, ale mniej dokładnie).
+        minDist=(
+            CIRCLE_MIN_RADIUS * 2
+        ),  # minimalna odległość między środkami wykrytych okręgów (w pikselach). Za małe → duplikaty; za duże → pomijanie bliskich okręgów.
+        param1=param1,
+        # param1 – górny próg dla Canny:
+        # HoughCircles wewnętrznie uruchamia Canny(low=param1/2, high=param1).
+        # Wyższy param1 → mniej krawędzi (bardziej „pewne” krawędzie), mniejszy szum, ale ryzyko utraty słabych okręgów.
+        # Niższy param1 → więcej krawędzi (także szumu), koła łatwiej „zbierają” głosy, ale rośnie liczba fałszywych detekcji.
+        # Typowe zakresy: 100–250.
+        param2=param2,
+        # param2 – próg akumulatora dla środków okręgów:
+        # Minimalna liczba „głosów” z krawędzi, aby uznać punkt za środek koła.
+        # Wyższy param2 → mniej detekcji, ale bardziej pewne; zbyt wysoki gubi słabsze/małe koła.
+        # Niższy param2 → więcej detekcji, także fałszywych/duplikatów (zwłaszcza przy niskim param1).
+        # Czułość param2 zależy od dp i zakresu promieni: dla mniejszych kół zwykle trzeba go obniżyć.
+        # Typowe zakresy: 20–80.
+        #  Jak je stroić w praktyce:
+        # Najpierw ustaw minRadius/maxRadius możliwie wąsko dla Twoich obiektów.
+        # Dobierz param1 patrząc na krawędzie Canny – krawędź koła powinna być ciągła, tło możliwie czyste.
+        # Podgląd krawędzi:
+        #         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+        # gray = cv.medianBlur(gray, 5)
+        # edges = cv.Canny(gray, param1 // 2, param1)
+        # cv.imshow("edges", edges)
+        # Potem reguluj param2:
+        # Brak/mało kół → obniż param2 (np. 45 → 35) lub nieco obniż param1 (200 → 150).
+        # Za dużo fałszywych/duplikatów → podnieś param2 (np. 45 → 60) lub podnieś param1 (200 → 230).
+        # Pamiętaj: gdy zwiększysz dp (>1), akumulator ma mniejszą rozdzielczość i często trzeba nieco obniżyć param2.
+        # Dla Twoich bieżących wartości (param1=200, param2=45):
         minRadius=CIRCLE_MIN_RADIUS,
         maxRadius=CIRCLE_MAX_RADIUS,
     )

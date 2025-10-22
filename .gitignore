@@ -1,6 +1,7 @@
 Miniconda3-latest-Linux-armv7l.sh
 stats.json
 wizja_zdjecia/**
+output_images/**
 
 # Created by https://www.toptal.com/developers/gitignore/api/linux,python,venv,visualstudiocode,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=linux,python,venv,visualstudiocode,macos

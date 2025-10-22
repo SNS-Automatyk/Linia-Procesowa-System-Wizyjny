@@ -6,8 +6,8 @@ FRAME_BOTTOM_MARGIN = 0  # Dolny margines ramki
 # --- KONIEC KONFIGURACJI ---
 
 # --- KONFIGURACJA WYKRYWANIA KÓŁEK ---
-CIRCLE_MIN_RADIUS = 50  # Minimalny promień wykrywanego kółka
-CIRCLE_MAX_RADIUS = 80  # Maksymalny promień wykrywanego kółka
+CIRCLE_MIN_RADIUS = 60  # Minimalny promień wykrywanego kółka
+CIRCLE_MAX_RADIUS = 75  # Maksymalny promień wykrywanego kółka
 # --- KONIEC KONFIGURACJI ---
 
 # --- LIMITY ---
