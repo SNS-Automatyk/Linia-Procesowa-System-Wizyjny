@@ -355,8 +355,8 @@ class PLCConnection:
                 # Not connected, skip read this cycle
                 return False
         try:
-            # Read through status at DBX12.0 (2 bytes) => total 14 bytes
-            data = self.client.db_read(self.db_numer, 0, 14)
+            byte_amount = self.data_store.buffer_size()
+            data = self.client.db_read(self.db_numer, 0, byte_amount)
         except Exception as e:
             logger.error(f"Błąd odczytu danych z PLC: {e}")
             return False
