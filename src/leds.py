@@ -7,13 +7,14 @@ import argparse
 from rpi_ws281x import PixelStrip, Color
 
 # Domyślna konfiguracja
-LED_COUNT = 44        # liczba diod w pasku
-LED_PIN = 12          # GPIO12 = PWM0
+LED_COUNT = 44  # liczba diod w pasku
+LED_PIN = 12  # GPIO12 = PWM0
 LED_FREQ_HZ = 800000  # standard WS2812B
 LED_DMA = 10
 LED_BRIGHTNESS = 255  # 0-255
 LED_INVERT = False
-LED_CHANNEL = 0       # dla GPIO18 użyj 0
+LED_CHANNEL = 0  # dla GPIO18 użyj 0
+
 
 class WS2812Flash:
     def __init__(self, led_count=LED_COUNT, pin=LED_PIN, brightness=LED_BRIGHTNESS):
@@ -23,7 +24,9 @@ class WS2812Flash:
         self.strip.begin()
 
     def _fill(self, r, g, b):
-        c = Color(r, g, b)  # UWAGA: wewnętrznie WS2812B często używa GRB; biblioteka mapuje to poprawnie
+        c = Color(
+            r, g, b
+        )  # UWAGA: wewnętrznie WS2812B często używa GRB; biblioteka mapuje to poprawnie
         for i in range(self.strip.numPixels()):
             self.strip.setPixelColor(i, c)
         self.strip.show()
@@ -33,7 +36,7 @@ class WS2812Flash:
         self.strip.setBrightness(max(0, min(255, int(brightness))))
         self.strip.show()
 
-    def flash_on(self, brightness = None):
+    def flash_on(self, brightness=None):
         if brightness is not None:
             self.set_brightness(brightness)
         # biały (R,G,B) = (255,255,255)
@@ -42,7 +45,7 @@ class WS2812Flash:
     def flash_off(self):
         self._fill(0, 0, 0)
 
-    def flash(self, duration_ms: int = 100, brightness = None):
+    def flash(self, duration_ms: int = 100, brightness=None):
         self.flash_on(brightness)
         time.sleep(max(0, duration_ms) / 1000.0)
         self.flash_off()
@@ -72,12 +75,12 @@ def main():
         ctrl.flash_off()
     elif args.cmd == "flash":
         ctrl.flash(args.ms)
-    elif args.cmd == "g": #green
-        ctrl._fill(0,255,0)
-    elif args.cmd == "r": #red
-        ctrl._fill(255,0,0)
-    elif args.cmd == "b": #blue
-        ctrl._fill(0,0,255)
+    elif args.cmd == "g":  # green
+        ctrl._fill(0, 255, 0)
+    elif args.cmd == "r":  # red
+        ctrl._fill(255, 0, 0)
+    elif args.cmd == "b":  # blue
+        ctrl._fill(0, 0, 255)
 
 
 if __name__ == "__main__":
