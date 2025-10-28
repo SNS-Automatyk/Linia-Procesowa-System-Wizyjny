@@ -1,6 +1,10 @@
 import asyncio
 import logging
 
+from .leds import *
+
+led_ctrl = WS2812Flash()
+
 from .wizja import wizja_still
 from .plc_lib import PLCData, PLCBoolField, PLCWordField, PLCRealField, PLCConnection
 
@@ -70,6 +74,13 @@ class LiniaDataStore(PLCData):
     klocek_w_podajniku = PLCBoolField(14, 0)
 
     tryb_auto = PLCBoolField(14, 1, settable=True)
+
+    def notify_subscribers(self):
+        super().notify_subscribers()
+        if self.system_wizyjny_on_off:
+            led_ctrl.flash_on()
+        else:
+            led_ctrl.flash_off()
 
 
 class LiniaConnection(PLCConnection):
