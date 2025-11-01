@@ -1,10 +1,18 @@
-# ws_flash.py
-# Sterowanie WS2812B (NeoPixel) przez GPIO18 (PWM) na Raspberry Pi.
+# Sterowanie WS2812B (NeoPixel) przez GPIO (PWM) na Raspberry Pi.
 # Wymaga: sudo, biblioteka rpi_ws281x
 
 import time
 import argparse
-from rpi_ws281x import PixelStrip, Color
+from logging import getLogger
+
+logger = getLogger("system_wizyjny.leds")
+try:
+    from rpi_ws281x import PixelStrip, Color
+except ImportError:
+    logger.warning("Brak biblioteki rpi_ws281x. Sterowanie WS2812B będzie niedostępne.")
+    PixelStrip = None
+    Color = None
+
 
 # Domyślna konfiguracja
 LED_COUNT = 44  # liczba diod w pasku
@@ -18,6 +26,8 @@ LED_CHANNEL = 0  # dla GPIO18 użyj 0
 
 class WS2812Flash:
     def __init__(self, led_count=LED_COUNT, pin=LED_PIN, brightness=LED_BRIGHTNESS):
+        if PixelStrip is None:
+            return
         self.strip = PixelStrip(
             led_count, pin, LED_FREQ_HZ, LED_DMA, LED_INVERT, brightness, LED_CHANNEL
         )

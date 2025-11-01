@@ -6,7 +6,13 @@ from .leds import *
 led_ctrl = WS2812Flash()
 
 from .wizja import wizja_still
-from .plc_lib import PLCData, PLCBoolField, PLCWordField, PLCRealField, PLCConnection
+from snap7_easy_vars import (
+    PLCData,
+    PLCBoolField,
+    PLCWordField,
+    PLCRealField,
+    PLCConnection,
+)
 
 DB_NUMBER = 1  # Numer bloku danych, który będziemy monitorować
 
@@ -101,7 +107,7 @@ def _should_detect_red_circle(result: dict) -> bool:
 async def monitor_and_analyze(data_store, linia, camera):
     while True:
         try:
-            await linia.read()
+            linia.read()
             if data_store.analyze:
                 logger.info("Start analizy!")
                 try:
@@ -125,7 +131,7 @@ async def monitor_and_analyze(data_store, linia, camera):
 
                 data_store.set_data(analyze=0)
 
-                await linia.write()
+                linia.write()
                 logger.info("Analiza zakończona, wynik zapisany.")
         except Exception as e:
             logger.exception(str(e))

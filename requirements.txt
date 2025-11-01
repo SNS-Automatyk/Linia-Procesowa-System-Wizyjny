@@ -42,3 +42,4 @@ uvloop==0.21.0
 watchfiles==1.1.0
 websockets==15.0.1
 rpi_ws281x==5.0.0
+python-snap7-easy-vars==1.0.3
