@@ -5,6 +5,8 @@ System komunikuje się z PLC (Programmable Logic Controller) za pomocą protoko�
 System udostępnia interfejs wiersza poleceń (CLI) do konfiguracji i uruchamiania różnych trybów pracy, takich jak podgląd na żywo z kamery, tryb produkcyjny oraz testowanie wykrywania kół.
 System udostępnia również API (napisane w FastAPI) do zdalnego monitorowania i sterowania systemem wizyjnym np. z poziomu aplikacji webowej.
 
+[Zobacz jak działa linia](https://www.youtube.com/watch?v=3EOQ3hkDdtI)
+
 ## Wymagania wstępne
 
 - Python 3.x
