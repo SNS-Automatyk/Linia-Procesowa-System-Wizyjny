@@ -34,6 +34,8 @@ class WS2812Flash:
         self.strip.begin()
 
     def _fill(self, r, g, b):
+        if not Color:
+            return
         c = Color(
             r, g, b
         )  # UWAGA: wewnętrznie WS2812B często używa GRB; biblioteka mapuje to poprawnie
