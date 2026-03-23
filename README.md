@@ -9,25 +9,24 @@ System udostępnia również API (napisane w FastAPI) do zdalnego monitorowania 
 
 ## Wymagania wstępne
 
-- Python 3.x
-- OpenCV
+- Python 3.9
 
 ## Instalacja
 
-1. Zainstaluj uv (manager pakietów i środowisk wirtualnych):
+1. Utwórz i aktywuj środowisko wirtualne:
     ```
-    pip install uv
-    ```
-
-2. Utwórz i aktywuj środowisko wirtualne:
-    ```
-    uv venv
-    uv activate
+    python -m venv .venv
+    source .venv/bin/activate
     ```
 
-3. Zainstaluj wymagane pakiety:
+2. Zainstaluj wymagane pakiety:
     ```
-    uv sync
+    pip install -r requirements.txt
+    ```
+
+3. W przypadku RPi zainstaluj dodatkowe pakiety:
+    ```
+    pip install -r requirements_rpi.txt
     ```
 
 2. Zainstaluj OpenCV:
