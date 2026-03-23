@@ -7,7 +7,6 @@ from fastapi import APIRouter, Query
 
 from src.static_assets import ANNOTATED_IMAGES_DIR
 
-
 router = APIRouter()
 
 _IMAGE_EXTENSIONS: Tuple[str, ...] = (".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp")

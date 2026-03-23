@@ -5,7 +5,6 @@ import datetime
 import json
 import logging
 
-
 logger = logging.getLogger("system_wizyjny")
 logger.setLevel(logging.DEBUG)
 

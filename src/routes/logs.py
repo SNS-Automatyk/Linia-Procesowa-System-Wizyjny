@@ -8,7 +8,6 @@ from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
 from src.logging_utils import InMemoryLogHandler, setup_in_memory_logging
 from src.state import shutdown_event
 
-
 router = APIRouter()
 
 

@@ -8,7 +8,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.state import data_store, linia, shutdown_event
 
-
 router = APIRouter()
 
 

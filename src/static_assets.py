@@ -5,7 +5,6 @@ from typing import Iterable
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-
 _SRC_DIR = os.path.dirname(__file__)
 _PROJECT_DIR = os.path.dirname(_SRC_DIR)
 

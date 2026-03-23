@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse
 
 from src.state import camera
 
-
 router = APIRouter()
 
 

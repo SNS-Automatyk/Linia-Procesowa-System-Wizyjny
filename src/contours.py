@@ -25,7 +25,7 @@ def detect_contours(
     srodki = []
     for kontur in kontury:  # dla wszystkich konturów
         prostokat = cv.minAreaRect(kontur)
-        ((x, y), (szer, wys), _) = prostokat
+        (x, y), (szer, wys), _ = prostokat
         x = int(x)
         y = int(y)
         rysuj = 1

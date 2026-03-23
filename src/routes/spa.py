@@ -5,7 +5,6 @@ from fastapi.responses import FileResponse
 
 from src.static_assets import DIST
 
-
 router = APIRouter()
 
 
